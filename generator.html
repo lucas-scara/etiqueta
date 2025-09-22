@@ -2,161 +2,181 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Etiqueta / Requisição</title>
+  <title>Etiqueta / Requisição (PDF)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <style>
-    html,body{margin:0;padding:0}
-    body{font-family: Arial, Helvetica, sans-serif;}
-
-    /* Página no tamanho exato da sua imagem: 1240x1755 px */
-    .page{
-      position: relative;
-      width: 1240px;
-      height: 1755px;
-      margin: 0 auto;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    /* **Fundo como IMG absoluta** (imprime sem depender de "gráficos de plano de fundo") */
-    .bg{
-      position:absolute; left:0; top:0;
-      width:1240px; height:1755px;
-      z-index:0;        /* atrás dos campos */
-      display:block;
-    }
-
-    .field{
-      position: absolute;
-      font-size: 28px;
-      color: #000;
-      line-height: 1;
-      white-space: nowrap;
-      z-index:1;        /* acima do fundo */
-    }
-
-    /* ====== POSIÇÕES (origem: canto superior esquerdo) ====== */
-    #nome      { left: 150px; top: 560px;  }
-    #dn        { left: 335px; top: 650px;  } /* DD/MM/AAAA */
-    #telefone  { left: 690px; top: 650px;  } /* (xx) xxxxx-xxxx */
-
-    #convenio  { left: 205px; top: 715px;  } /* sempre "SUS" */
-    #cns       { left: 525px; top: 715px;  } /* número da carteirinha (CNS) */
-
-    #cpf       { left: 525px; top: 770px;  }
-    #nomeMae   { left: 205px; top: 830px;  }
-
-    .wrap{padding:10px}
-    .bar{
-      max-width:1240px;margin:10px auto;padding:8px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap
-    }
+    body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
     .btn{padding:10px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer}
     .btn:hover{background:#efefef}
-    .hint{font-size:12px;color:#666;margin-top:4px;text-align:center}
-    details{max-width:1240px;margin:0 auto 10px auto}
+    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px}
+    details{margin:8px 0}
     pre{background:#f7f7f7;padding:10px;border-radius:8px;overflow:auto}
-
-    @media print {
-      .wrap, details { display:none !important; }
-      .page{ margin:0 }
-      /* margens zeradas para não cortar a imagem (ajuste se preferir) */
-      @page { size: A4 portrait; margin: 0; }
-    }
   </style>
+  <!-- pdf-lib -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 
-  <div class="wrap">
-    <div class="bar">
-      <button class="btn" id="btnPrint">Imprimir</button>
-      <button class="btn" id="btnReload">Recarregar (forçar)</button>
-    </div>
-    <details>
-      <summary>Debug (payload decodificado)</summary>
-      <pre id="debug"></pre>
-    </details>
-    <div class="hint">
-      Se algum texto ficar fora do lugar, ajuste os valores <code>left/top</code> no CSS.
-      <br>Se o navegador ainda ocultar o fundo, marque “Imprimir gráficos de plano de fundo” nas opções de impressão (Chrome).
-    </div>
+  <div class="bar">
+    <button class="btn" id="btnGen">Gerar/Atualizar PDF</button>
+    <button class="btn" id="btnPrint">Imprimir</button>
+    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+    <button class="btn" id="btnToggleGrid" title="Grade de calibração">Grade</button>
   </div>
+  <details>
+    <summary>Debug (payload decodificado)</summary>
+    <pre id="debug"></pre>
+  </details>
+  <iframe id="preview"></iframe>
 
-  <div class="page" id="page">
-    <!-- IMAGEM DE FUNDO -->
-    <img class="bg" id="bg" src="template.jpg" alt="template">
+<script>
+(function(){
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-    <!-- CAMPOS -->
-    <div id="nome"     class="field"></div>
-    <div id="dn"       class="field"></div>
-    <div id="telefone" class="field"></div>
+  // --- Ajuste aqui se sua imagem tiver outro tamanho ---
+  const IMG_SRC    = 'template.jpg';
+  const IMG_WIDTH  = 1240;   // px
+  const IMG_HEIGHT = 1755;   // px
+  // -----------------------------------------------------
 
-    <div id="convenio" class="field"></div>
-    <div id="cns"      class="field"></div>
+  const state = { blobUrl:null, showGrid:false };
 
-    <div id="cpf"      class="field"></div>
-    <div id="nomeMae"  class="field"></div>
-  </div>
+  const $ = s => document.querySelector(s);
+  const onlyDigits = s => (s||'').replace(/\D+/g,'');
 
-  <script>
-  (function(){
-    const $ = sel => document.querySelector(sel);
-    const onlyDigits = s => (s||'').replace(/\D+/g,'');
-
-    function getPayload(){
-      const pick = (src) => {
-        const m = src.match(/[?#&]d=([^&]+)/);
-        if(!m) return null;
-        try{
-          const b64 = decodeURIComponent(m[1]);
-          const json = decodeURIComponent(escape(atob(b64)));
-          return JSON.parse(json);
-        }catch(e){ console.error('Decode payload error:', e); return null; }
-      };
-      return pick(location.hash) || pick(location.search) || {};
-    }
-
-    function toDateBR(s){
-      if(!s) return '';
-      const mm = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-      if(mm) return `${mm[1]}/${mm[2]}/${mm[3]}`;
-      const d = onlyDigits(s);
-      if(d.length===8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
-      const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
-      return h ? h[1] : s;
-    }
-
-    function render(){
-      const dados = getPayload();
-      $('#debug').textContent = JSON.stringify(dados, null, 2);
-
-      const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-      $('#nome').textContent = nomeCompleto;
-      $('#dn').textContent = toDateBR(dados.nascimento||'');
-      $('#telefone').textContent = (dados.celular||'').replace(/\s+/g,' ').trim();
-
-      $('#convenio').textContent = 'SUS';
-      $('#cns').textContent = (dados.cns||'').trim();
-      $('#cpf').textContent = (dados.cpf||'').trim();
-      $('#nomeMae').textContent = (dados.nomeMae||'').trim();
-    }
-
-    // primeira renderização
-    render();
-    window.addEventListener('hashchange', render);
-
-    // ações
-    $('#btnPrint').onclick = () => window.print();
-    $('#btnReload').onclick = () => {
-      const u = new URL(location.href);
-      u.searchParams.set('t', Date.now());
-      // recarrega garantindo que a IMG também seja rebaixada
-      const img = document.getElementById('bg');
-      img.src = 'template.jpg?t=' + Date.now();
-      history.replaceState(null,'',u.toString());
+  function getPayload(){
+    const pick = (src) => {
+      const m = src.match(/[?#&]d=([^&]+)/);
+      if(!m) return null;
+      try{
+        const b64 = decodeURIComponent(m[1]);
+        const json = decodeURIComponent(escape(atob(b64)));
+        return JSON.parse(json);
+      }catch(e){ console.error('Decode payload error:', e); return null; }
     };
-  })();
-  </script>
+    return pick(location.hash) || pick(location.search) || {};
+  }
+
+  function toDateBR(s){
+    if(!s) return '';
+    const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+    if(m) return `${m[1]}/${m[2]}/${m[3]}`;
+    const d = onlyDigits(s);
+    if(d.length===8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
+    const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
+    return h ? h[1] : s;
+  }
+
+  // Conversão de coordenadas: você já mediu como top/left a partir do canto superior esquerdo.
+  // No PDF, a origem é no canto INFERIOR esquerdo. Convertemos com y = PAGE_H - top - fontSize.
+  function TL(x_left, y_top, fontSize){ 
+    return { x: x_left, y: IMG_HEIGHT - y_top - (fontSize||11) }; 
+  }
+
+  // MAPA DE CAMPOS nas coordenadas que combinamos (top/left em px)
+  // Ajuste fino se necessário.
+  const FONT_SIZE = 28;
+  const FIELDS_TL = {
+    nome:      { left:150, top:560,  size:FONT_SIZE, bold:true },
+    dn:        { left:335, top:650,  size:FONT_SIZE },
+    telefone:  { left:690, top:650,  size:FONT_SIZE },
+
+    convenio:  { left:205, top:715,  size:FONT_SIZE },
+    cns:       { left:525, top:715,  size:FONT_SIZE },
+
+    cpf:       { left:525, top:770,  size:FONT_SIZE },
+    nomeMae:   { left:205, top:830,  size:FONT_SIZE },
+  };
+
+  async function generate(){
+    const dados = getPayload();
+    $('#debug').textContent = JSON.stringify(dados,null,2);
+
+    // 1) Cria doc e página do tamanho da imagem
+    const pdfDoc = await PDFDocument.create();
+    const page   = pdfDoc.addPage([IMG_WIDTH, IMG_HEIGHT]);
+
+    // 2) Insere a imagem como "fundo"
+    const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer());
+    let img;
+    const type = IMG_SRC.split('.').pop().toLowerCase();
+    if (type === 'png'){
+      img = await pdfDoc.embedPng(imgBytes);
+    } else {
+      img = await pdfDoc.embedJpg(imgBytes);
+    }
+    page.drawImage(img, { x:0, y:0, width:IMG_WIDTH, height:IMG_HEIGHT });
+
+    // 3) (Opcional) grade de calibração
+    if (state.showGrid){
+      const step=50;
+      for(let x=0;x<=IMG_WIDTH;x+=step){
+        page.drawLine({ start:{x, y:0}, end:{x, y:IMG_HEIGHT}, thickness:(x%100===0?0.8:0.3), color:rgb(0.7,0.7,1) });
+      }
+      for(let y=0;y<=IMG_HEIGHT;y+=step){
+        page.drawLine({ start:{x:0, y}, end:{x:IMG_WIDTH, y}, thickness:(y%100===0?0.8:0.3), color:rgb(0.7,0.7,1) });
+      }
+    }
+
+    // 4) Fontes
+    const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    // 5) Valores normalizados
+    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
+    const dn = toDateBR(dados.nascimento||'');
+    const tel = (dados.celular||'').replace(/\s+/g,' ').trim();
+    const conv = 'SUS';
+    const cns = (dados.cns||'').trim();
+    const cpf = (dados.cpf||'').trim();
+    const mae = (dados.nomeMae||'').trim();
+
+    const VALUES = {
+      nome:     nomeCompleto,
+      dn:       dn,
+      telefone: tel,
+      convenio: conv,
+      cns:      cns,
+      cpf:      cpf,
+      nomeMae:  mae,
+    };
+
+    // 6) Desenha os textos
+    Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
+      const value = VALUES[key];
+      if(!value) return;
+      const { x, y } = TL(cfg.left, cfg.top, cfg.size);
+      page.drawText(String(value), {
+        x, y,
+        size: cfg.size || 12,
+        font: cfg.bold ? helvB : helv,
+        color: rgb(0,0,0)
+      });
+    });
+
+    // 7) Salva e mostra no iframe
+    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); state.blobUrl=null; }
+    const bytes = await pdfDoc.save();
+    const blob = new Blob([bytes], { type:'application/pdf' });
+    state.blobUrl = URL.createObjectURL(blob);
+    $('#preview').src = state.blobUrl;
+    $('#btnDownload').href = state.blobUrl;
+  }
+
+  // Inicializa e adiciona handlers
+  generate();
+  window.addEventListener('hashchange', generate);
+  $('#btnGen').onclick = generate;
+  $('#btnPrint').onclick = ()=> {
+    const ifr = document.getElementById('preview');
+    try { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+    catch { window.open(state.blobUrl, '_blank', 'noopener'); }
+  };
+  $('#btnToggleGrid').onclick = ()=>{ state.showGrid = !state.showGrid; generate(); };
+})();
+</script>
 </body>
 </html>
