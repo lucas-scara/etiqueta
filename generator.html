@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <title>Etiqueta / Requisição</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- ajuda um pouco contra cache, mas o cache-buster do bookmarklet é o que resolve -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
   <style>
     html,body{margin:0;padding:0}
     body{font-family: Arial, Helvetica, sans-serif;}
@@ -20,7 +23,7 @@
 
     .field{
       position: absolute;
-      font-size: 28px;           /* ajuste fino de tamanho aqui */
+      font-size: 28px;
       color: #000;
       line-height: 1;
       white-space: nowrap;
@@ -37,18 +40,21 @@
     #cpf       { left: 525px; top: 770px;  }
     #nomeMae   { left: 205px; top: 830px;  }
 
-    /* Barra de ações (opcional) */
+    /* Barra e debug */
+    .wrap{padding:10px}
     .bar{
       max-width:1240px;margin:10px auto;padding:8px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap
     }
     .btn{padding:10px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer}
     .btn:hover{background:#efefef}
     .hint{font-size:12px;color:#666;margin-top:4px;text-align:center}
-    .wrap{padding:10px}
+    details{max-width:1240px;margin:0 auto 10px auto}
+    pre{background:#f7f7f7;padding:10px;border-radius:8px;overflow:auto}
+
     @media print {
-      .bar,.wrap{ display:none !important; }
+      .wrap, details { display:none !important; }
       .page{ margin:0 }
-      @page { size: A4 portrait; margin: 10mm; } /* ajuste de margem da impressão */
+      @page { size: A4 portrait; margin: 10mm; }
     }
   </style>
 </head>
@@ -57,8 +63,12 @@
   <div class="wrap">
     <div class="bar">
       <button class="btn" id="btnPrint">Imprimir</button>
-      <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar (PDF via impressão)</a>
+      <button class="btn" id="btnReload">Recarregar (forçar)</button>
     </div>
+    <details>
+      <summary>Debug (payload decodificado)</summary>
+      <pre id="debug"></pre>
+    </details>
     <div class="hint">Se algum texto ficar fora do lugar, ajuste os valores <code>left/top</code> dos IDs no CSS.</div>
   </div>
 
@@ -76,53 +86,65 @@
 
   <script>
   (function(){
-    // ---- utilitários ----
-    function getPayloadFromHash(){
-      const m = (location.hash||'').match(/[#&]d=([^&]+)/);
-      if(!m) return {};
-      try{
-        const b64 = decodeURIComponent(m[1]);
-        const json = decodeURIComponent(escape(atob(b64)));
-        return JSON.parse(json);
-      }catch(e){
-        console.error('Falha ao ler payload do hash:', e);
-        return {};
-      }
-    }
+    const $ = sel => document.querySelector(sel);
     const onlyDigits = s => (s||'').replace(/\D+/g,'');
-    const toDateBR = (s) => {
+
+    // lê payload tanto de hash (#d=) quanto de search (?d=)
+    function getPayload(){
+      const get = (src) => {
+        const m = src.match(/[?#&]d=([^&]+)/);
+        if(!m) return null;
+        try{
+          const b64 = decodeURIComponent(m[1]);
+          const json = decodeURIComponent(escape(atob(b64)));
+          return JSON.parse(json);
+        }catch(e){ console.error('Decode payload error:', e); return null; }
+      };
+      return get(location.hash) || get(location.search) || {};
+    }
+
+    function toDateBR(s){
       if(!s) return '';
-      // já vem dd/mm/aaaa?
-      const mm = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-      if(mm) return `${mm[1]}/${mm[2]}/${mm[3]}`;
-      // extrai só números
+      // tenta dd/mm/aaaa (corta hora, se houver)
+      const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+      if(m) return `${m[1]}/${m[2]}/${m[3]}`;
+      // tenta via dígitos
       const d = onlyDigits(s);
-      if(d.length === 8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
-      // remove hora se tiver
+      if(d.length===8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
+      // corta hora se vier "dd/mm/aaaa hh:mm"
       const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
       return h ? h[1] : s;
-    };
+    }
 
-    // ---- dados vindos do bookmarklet ----
-    const dados = getPayloadFromHash();
+    function render(){
+      const dados = getPayload();
 
-    // ---- preenchimento dos campos ----
-    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-    document.getElementById('nome').textContent = nomeCompleto;
-    document.getElementById('dn').textContent = toDateBR(dados.nascimento||'');
-    document.getElementById('telefone').textContent = (dados.celular||'').replace(/\s+/g,' ').trim();
+      // Debug
+      $('#debug').textContent = JSON.stringify(dados, null, 2);
 
-    document.getElementById('convenio').textContent = 'SUS';
-    document.getElementById('cns').textContent = (dados.cns||'').trim();
-    document.getElementById('cpf').textContent = (dados.cpf||'').trim();
-    document.getElementById('nomeMae').textContent = (dados.nomeMae||'').trim();
+      const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
+      $('#nome').textContent = nomeCompleto;
+      $('#dn').textContent = toDateBR(dados.nascimento||'');
+      $('#telefone').textContent = (dados.celular||'').replace(/\s+/g,' ').trim();
 
-    // ---- ações ----
-    document.getElementById('btnPrint').onclick = () => window.print();
-    // dica: o botão "Baixar" aqui só abre a caixa de diálogo da impressão (para salvar como PDF).
-    document.getElementById('btnDownload').onclick = (e) => {
-      e.preventDefault();
-      window.print();
+      $('#convenio').textContent = 'SUS';
+      $('#cns').textContent = (dados.cns||'').trim();
+      $('#cpf').textContent = (dados.cpf||'').trim();
+      $('#nomeMae').textContent = (dados.nomeMae||'').trim();
+    }
+
+    // primeira renderização
+    render();
+
+    // re-render se o hash mudar (ex.: você clicar o bookmarklet novamente com a aba aberta)
+    window.addEventListener('hashchange', render);
+
+    // Ações
+    $('#btnPrint').onclick = () => window.print();
+    $('#btnReload').onclick = () => {
+      const u = new URL(location.href);
+      u.searchParams.set('t', Date.now()); // força reload do HTML/imagem
+      location.href = u.toString();
     };
   })();
   </script>
