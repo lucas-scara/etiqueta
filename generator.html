@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pedido de Exame</title>
+<style>
+  body{margin:0;padding:0}
+  .page {
+    position: relative;
+    width: 794px; /* A4 ~96dpi */
+    height: 1123px;
+    background: url('template.jpg') no-repeat center top;
+    background-size: cover;
+  }
+  .field {
+    position: absolute;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #000;
+  }
+  #nome { top: 150px; left: 200px; }
+  #nascimento { top: 180px; left: 200px; }
+  #cpf { top: 210px; left: 200px; }
+  /* adicione mais posições conforme necessário */
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="field" id="nome"></div>
+    <div class="field" id="nascimento"></div>
+    <div class="field" id="cpf"></div>
+  </div>
+
+<script>
+(function(){
+  // Lê dados do hash como no exemplo anterior
+  function getDados(){
+    const hash = location.hash || '';
+    const m = hash.match(/[#&]d=([^&]+)/);
+    if(!m) return {};
+    try {
+      const b64 = decodeURIComponent(m[1]);
+      const json = decodeURIComponent(escape(atob(b64)));
+      return JSON.parse(json);
+    }catch(e){ return {}; }
+  }
+  const dados = getDados();
+
+  document.getElementById('nome').textContent = (dados.nome||'') + ' ' + (dados.sobrenome||'');
+  document.getElementById('nascimento').textContent = dados.nascimento||'';
+  document.getElementById('cpf').textContent = dados.cpf||'';
+})();
+</script>
+</body>
+</html>
