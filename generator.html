@@ -76,19 +76,19 @@
     return { x: x_left, y: IMG_HEIGHT - y_top - (fontSize||11) }; 
   }
 
-  // MAPA DE CAMPOS nas coordenadas que combinamos (top/left em px)
-  // Ajuste fino se necessário.
+  // MAPA DE CAMPOS nas coordenadas (top/left em px)
+  // Já ajustados: top = top - 160
   const FONT_SIZE = 28;
   const FIELDS_TL = {
-    nome:      { left:150, top:560,  size:FONT_SIZE, bold:true },
-    dn:        { left:335, top:650,  size:FONT_SIZE },
-    telefone:  { left:690, top:650,  size:FONT_SIZE },
+    nome:      { left:150, top:400,  size:FONT_SIZE, bold:true }, // antes 560
+    dn:        { left:335, top:490,  size:FONT_SIZE },            // antes 650
+    telefone:  { left:690, top:490,  size:FONT_SIZE },            // antes 650
 
-    convenio:  { left:205, top:715,  size:FONT_SIZE },
-    cns:       { left:525, top:715,  size:FONT_SIZE },
+    convenio:  { left:205, top:555,  size:FONT_SIZE },            // antes 715
+    cns:       { left:525, top:555,  size:FONT_SIZE },            // antes 715
 
-    cpf:       { left:525, top:770,  size:FONT_SIZE },
-    nomeMae:   { left:205, top:830,  size:FONT_SIZE },
+    cpf:       { left:525, top:610,  size:FONT_SIZE },            // antes 770
+    nomeMae:   { left:205, top:670,  size:FONT_SIZE },            // antes 830
   };
 
   async function generate(){
