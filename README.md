@@ -1,13 +1,11 @@
-# Script de Pedido de Exame via Bookmarklet
+# Preenchimento de Pedido de Exame (PDF)
 
-## Como usar
-1. Ative o **GitHub Pages** neste repositório (`Settings > Pages > Deploy from branch > main`).
-2. Copie o conteúdo do arquivo `bookmarklet.js`.
-3. Crie um **favorito** no seu navegador.
-4. No campo de URL do favorito, cole o código.
-5. Quando estiver na página de um paciente, clique no favorito para gerar o pedido de exame.
+1. Ative o GitHub Pages (branch `main`).
+2. Suba `template.pdf` (o arquivo escaneado).
+3. Ajuste `SEU_USUARIO` e `NOME_REPO` em `bookmarklet.js` e `main.js`.
+4. Crie um favorito com o conteúdo de `bookmarklet.js`.
+5. Na página do paciente, clique no favorito. Um PDF preenchido abrirá para impressão.
 
-## Estrutura
-- `main.js`: contém a lógica completa.
-- `bookmarklet.js`: apenas injeta o `main.js` hospedado via GitHub Pages.
-- `README.md`: instruções de uso.
+### Calibração de coordenadas
+- Ative `debug:true` na chamada `__fillTemplateAndOpen` para ver uma grade.
+- Ajuste as posições em `fill.js` (objeto `F`).
