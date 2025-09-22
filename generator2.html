@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Etiqueta / Requisição</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: Arial, Helvetica, sans-serif;}
+
+    /* Tamanho da imagem fornecida: 1240x1755 px */
+    .page{
+      position: relative;
+      width: 1240px;
+      height: 1755px;
+      margin: 0 auto;
+      background: url('template.jpg') no-repeat left top;
+      background-size: 1240px 1755px;
+    }
+
+    .field{
+      position: absolute;
+      font-size: 28px;           /* ajuste fino de tamanho aqui */
+      color: #000;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* ====== POSIÇÕES (origem: canto superior esquerdo) ====== */
+    #nome      { left: 150px; top: 560px;  }
+    #dn        { left: 335px; top: 650px;  } /* DD/MM/AAAA */
+    #telefone  { left: 690px; top: 650px;  } /* (xx) xxxxx-xxxx */
+
+    #convenio  { left: 205px; top: 715px;  } /* sempre "SUS" */
+    #cns       { left: 525px; top: 715px;  } /* número da carteirinha (CNS) */
+
+    #cpf       { left: 525px; top: 770px;  }
+    #nomeMae   { left: 205px; top: 830px;  }
+
+    /* Barra de ações (opcional) */
+    .bar{
+      max-width:1240px;margin:10px auto;padding:8px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap
+    }
+    .btn{padding:10px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer}
+    .btn:hover{background:#efefef}
+    .hint{font-size:12px;color:#666;margin-top:4px;text-align:center}
+    .wrap{padding:10px}
+    @media print {
+      .bar,.wrap{ display:none !important; }
+      .page{ margin:0 }
+      @page { size: A4 portrait; margin: 10mm; } /* ajuste de margem da impressão */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <div class="bar">
+      <button class="btn" id="btnPrint">Imprimir</button>
+      <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar (PDF via impressão)</a>
+    </div>
+    <div class="hint">Se algum texto ficar fora do lugar, ajuste os valores <code>left/top</code> dos IDs no CSS.</div>
+  </div>
+
+  <div class="page">
+    <div id="nome"     class="field"></div>
+    <div id="dn"       class="field"></div>
+    <div id="telefone" class="field"></div>
+
+    <div id="convenio" class="field"></div>
+    <div id="cns"      class="field"></div>
+
+    <div id="cpf"      class="field"></div>
+    <div id="nomeMae"  class="field"></div>
+  </div>
+
+  <script>
+  (function(){
+    // ---- utilitários ----
+    function getPayloadFromHash(){
+      const m = (location.hash||'').match(/[#&]d=([^&]+)/);
+      if(!m) return {};
+      try{
+        const b64 = decodeURIComponent(m[1]);
+        const json = decodeURIComponent(escape(atob(b64)));
+        return JSON.parse(json);
+      }catch(e){
+        console.error('Falha ao ler payload do hash:', e);
+        return {};
+      }
+    }
+    const onlyDigits = s => (s||'').replace(/\D+/g,'');
+    const toDateBR = (s) => {
+      if(!s) return '';
+      // já vem dd/mm/aaaa?
+      const mm = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+      if(mm) return `${mm[1]}/${mm[2]}/${mm[3]}`;
+      // extrai só números
+      const d = onlyDigits(s);
+      if(d.length === 8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
+      // remove hora se tiver
+      const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
+      return h ? h[1] : s;
+    };
+
+    // ---- dados vindos do bookmarklet ----
+    const dados = getPayloadFromHash();
+
+    // ---- preenchimento dos campos ----
+    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
+    document.getElementById('nome').textContent = nomeCompleto;
+    document.getElementById('dn').textContent = toDateBR(dados.nascimento||'');
+    document.getElementById('telefone').textContent = (dados.celular||'').replace(/\s+/g,' ').trim();
+
+    document.getElementById('convenio').textContent = 'SUS';
+    document.getElementById('cns').textContent = (dados.cns||'').trim();
+    document.getElementById('cpf').textContent = (dados.cpf||'').trim();
+    document.getElementById('nomeMae').textContent = (dados.nomeMae||'').trim();
+
+    // ---- ações ----
+    document.getElementById('btnPrint').onclick = () => window.print();
+    // dica: o botão "Baixar" aqui só abre a caixa de diálogo da impressão (para salvar como PDF).
+    document.getElementById('btnDownload').onclick = (e) => {
+      e.preventDefault();
+      window.print();
+    };
+  })();
+  </script>
+</body>
+</html>
