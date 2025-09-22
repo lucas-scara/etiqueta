@@ -4,21 +4,28 @@
   <meta charset="utf-8" />
   <title>Etiqueta / Requisição</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- ajuda um pouco contra cache, mas o cache-buster do bookmarklet é o que resolve -->
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <style>
     html,body{margin:0;padding:0}
     body{font-family: Arial, Helvetica, sans-serif;}
 
-    /* Tamanho da imagem fornecida: 1240x1755 px */
+    /* Página no tamanho exato da sua imagem: 1240x1755 px */
     .page{
       position: relative;
       width: 1240px;
       height: 1755px;
       margin: 0 auto;
-      background: url('template.jpg') no-repeat left top;
-      background-size: 1240px 1755px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* **Fundo como IMG absoluta** (imprime sem depender de "gráficos de plano de fundo") */
+    .bg{
+      position:absolute; left:0; top:0;
+      width:1240px; height:1755px;
+      z-index:0;        /* atrás dos campos */
+      display:block;
     }
 
     .field{
@@ -27,6 +34,7 @@
       color: #000;
       line-height: 1;
       white-space: nowrap;
+      z-index:1;        /* acima do fundo */
     }
 
     /* ====== POSIÇÕES (origem: canto superior esquerdo) ====== */
@@ -40,7 +48,6 @@
     #cpf       { left: 525px; top: 770px;  }
     #nomeMae   { left: 205px; top: 830px;  }
 
-    /* Barra e debug */
     .wrap{padding:10px}
     .bar{
       max-width:1240px;margin:10px auto;padding:8px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap
@@ -54,7 +61,8 @@
     @media print {
       .wrap, details { display:none !important; }
       .page{ margin:0 }
-      @page { size: A4 portrait; margin: 10mm; }
+      /* margens zeradas para não cortar a imagem (ajuste se preferir) */
+      @page { size: A4 portrait; margin: 0; }
     }
   </style>
 </head>
@@ -69,10 +77,17 @@
       <summary>Debug (payload decodificado)</summary>
       <pre id="debug"></pre>
     </details>
-    <div class="hint">Se algum texto ficar fora do lugar, ajuste os valores <code>left/top</code> dos IDs no CSS.</div>
+    <div class="hint">
+      Se algum texto ficar fora do lugar, ajuste os valores <code>left/top</code> no CSS.
+      <br>Se o navegador ainda ocultar o fundo, marque “Imprimir gráficos de plano de fundo” nas opções de impressão (Chrome).
+    </div>
   </div>
 
-  <div class="page">
+  <div class="page" id="page">
+    <!-- IMAGEM DE FUNDO -->
+    <img class="bg" id="bg" src="template.jpg" alt="template">
+
+    <!-- CAMPOS -->
     <div id="nome"     class="field"></div>
     <div id="dn"       class="field"></div>
     <div id="telefone" class="field"></div>
@@ -89,9 +104,8 @@
     const $ = sel => document.querySelector(sel);
     const onlyDigits = s => (s||'').replace(/\D+/g,'');
 
-    // lê payload tanto de hash (#d=) quanto de search (?d=)
     function getPayload(){
-      const get = (src) => {
+      const pick = (src) => {
         const m = src.match(/[?#&]d=([^&]+)/);
         if(!m) return null;
         try{
@@ -100,26 +114,21 @@
           return JSON.parse(json);
         }catch(e){ console.error('Decode payload error:', e); return null; }
       };
-      return get(location.hash) || get(location.search) || {};
+      return pick(location.hash) || pick(location.search) || {};
     }
 
     function toDateBR(s){
       if(!s) return '';
-      // tenta dd/mm/aaaa (corta hora, se houver)
-      const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-      if(m) return `${m[1]}/${m[2]}/${m[3]}`;
-      // tenta via dígitos
+      const mm = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+      if(mm) return `${mm[1]}/${mm[2]}/${mm[3]}`;
       const d = onlyDigits(s);
       if(d.length===8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
-      // corta hora se vier "dd/mm/aaaa hh:mm"
       const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
       return h ? h[1] : s;
     }
 
     function render(){
       const dados = getPayload();
-
-      // Debug
       $('#debug').textContent = JSON.stringify(dados, null, 2);
 
       const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
@@ -135,16 +144,17 @@
 
     // primeira renderização
     render();
-
-    // re-render se o hash mudar (ex.: você clicar o bookmarklet novamente com a aba aberta)
     window.addEventListener('hashchange', render);
 
-    // Ações
+    // ações
     $('#btnPrint').onclick = () => window.print();
     $('#btnReload').onclick = () => {
       const u = new URL(location.href);
-      u.searchParams.set('t', Date.now()); // força reload do HTML/imagem
-      location.href = u.toString();
+      u.searchParams.set('t', Date.now());
+      // recarrega garantindo que a IMG também seja rebaixada
+      const img = document.getElementById('bg');
+      img.src = 'template.jpg?t=' + Date.now();
+      history.replaceState(null,'',u.toString());
     };
   })();
   </script>
