@@ -102,19 +102,29 @@
     return h ? h[1] : s;
   }
 
-  // Coordenadas originais (em PX, origem no topo-esquerdo da imagem)
-  const FONT_SIZE = 28;
-  const FIELDS_TL = {
-    nome:      { left:150, top:560,  size:FONT_SIZE, bold:true },
-    dn:        { left:335, top:650,  size:FONT_SIZE },
-    telefone:  { left:690, top:650,  size:FONT_SIZE },
+// Coordenadas ajustadas (em PX, origem no topo-esquerdo da imagem)
+const FONT_SIZE = 28;
+const FIELDS_TL = {
+  // Nome: x +30, y -170
+  nome:      { left:150+30, top:560-170,  size:FONT_SIZE, bold:true },
 
-    convenio:  { left:205, top:715,  size:FONT_SIZE },
-    cns:       { left:525, top:715,  size:FONT_SIZE },
+  // Data de nascimento e telefone: x +30, y -207
+  dn:        { left:335+30, top:650-207,  size:FONT_SIZE },
+  telefone:  { left:690+30, top:650-207,  size:FONT_SIZE },
 
-    cpf:       { left:525, top:770,  size:FONT_SIZE },
-    nomeMae:   { left:205, top:830,  size:FONT_SIZE },
-  };
+  // SUS: x +30, y -215
+  convenio:  { left:205+30, top:715-215,  size:FONT_SIZE },
+
+  // CNS: x +265, y -215
+  cns:       { left:525+265, top:715-215,  size:FONT_SIZE },
+
+  // CPF: x -50, y -215
+  cpf:       { left:525-50, top:770-215,  size:FONT_SIZE },
+
+  // Nome da mãe: x +70, y -228
+  nomeMae:   { left:205+70, top:830-228,  size:FONT_SIZE },
+};
+
 
   // Converte left/top em PX para coordenada PDF (PT) em A4, aplicando offsets globais
   function TL_withOffset(left, top, fontSizePx){
