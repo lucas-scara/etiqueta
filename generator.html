@@ -107,7 +107,7 @@
     const d8 = dateDigits8(s);
     if(!d8) return '';
     const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
-    return `${dd}   ${mm}     ${yyyy}`;
+    return `${dd}     ${mm}   ${yyyy}`;
   }
 
   // === Máscaras ===
@@ -129,8 +129,8 @@
   const FONT_SIZE = 28;
   const FIELDS_TL = {
     nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
-    dn:        { left:365, top:443,  size:FONT_SIZE },
-    telefone:  { left:720, top:443,  size:FONT_SIZE },
+    dn:        { left:356, top:443,  size:FONT_SIZE },
+    telefone:  { left:702, top:443,  size:FONT_SIZE },
     convenio:  { left:235, top:500,  size:FONT_SIZE },
     cns:       { left:790, top:500,  size:FONT_SIZE },
     cpf:       { left:475, top:555,  size:FONT_SIZE },
