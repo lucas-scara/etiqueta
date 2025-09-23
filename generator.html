@@ -57,23 +57,20 @@
 (function(){
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-  // --- SUA IMAGEM (mesmas dimensões do arquivo) ---
   const IMG_SRC    = 'template.jpg';
-  const IMG_WIDTH  = 1240;  // px
-  const IMG_HEIGHT = 1755;  // px
+  const IMG_WIDTH  = 1240;
+  const IMG_HEIGHT = 1755;
 
-  // --- PDF em A4 (pontos) ---
-  const PAGE_W = 595;  // 210 mm @ 72dpi
-  const PAGE_H = 842;  // 297 mm @ 72dpi
+  const PAGE_W = 595;
+  const PAGE_H = 842;
 
-  // Fator px -> pt (escala única para fundo e textos)
-  const SCALE = PAGE_W / IMG_WIDTH; // ~0.48
+  const SCALE = PAGE_W / IMG_WIDTH;
 
   const state = {
     blobUrl: null,
     showGrid: false,
     offX: 0,
-    offY: -160
+    offY: 0
   };
 
   const $ = s => document.querySelector(s);
@@ -87,46 +84,53 @@
         const b64 = decodeURIComponent(m[1]);
         const json = decodeURIComponent(escape(atob(b64)));
         return JSON.parse(json);
-      }catch(e){ console.error('Decode payload error:', e); return null; }
+      }catch(e){ return null; }
     };
     return pick(location.hash) || pick(location.search) || {};
   }
 
   function toDateBR(s){
     if(!s) return '';
-    const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-    if(m) return `${m[1]}/${m[2]}/${m[3]}`;
     const d = onlyDigits(s);
     if(d.length===8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
-    const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
-    return h ? h[1] : s;
+    return s;
   }
 
-// Coordenadas ajustadas (em PX, origem no topo-esquerdo da imagem)
-const FONT_SIZE = 28;
-const FIELDS_TL = {
-  // Nome: x +30, y -170
-  nome:      { left:150+30, top:560-170,  size:FONT_SIZE, bold:true },
+  function formatDNBoxes(s){
+    const d = onlyDigits(toDateBR(s));
+    if (d.length !== 8) return toDateBR(s);
+    const dd = d.slice(0,2);
+    const mm = d.slice(2,4);
+    const yyyy = d.slice(4,8);
+    return dd + '   ' + mm + '     ' + yyyy;
+  }
 
-  // Data de nascimento e telefone: x +30, y -207
-  dn:        { left:335+30, top:650-207,  size:FONT_SIZE },
-  telefone:  { left:690+30, top:650-207,  size:FONT_SIZE },
+  function formatPhone(s){
+    const d = onlyDigits(s);
+    if(d.length < 10) return s;
+    const ddd = d.slice(0,2);
+    const part1 = d.length===10 ? d.slice(2,6) : d.slice(2,7);
+    const part2 = d.length===10 ? d.slice(6)   : d.slice(7);
+    return `(${ddd}) ${part1}-${part2}`;
+  }
 
-  // SUS: x +30, y -215
-  convenio:  { left:205+30, top:715-215,  size:FONT_SIZE },
+  function formatCPF(s){
+    const d = onlyDigits(s);
+    if(d.length!==11) return s;
+    return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
+  }
 
-  // CNS: x +265, y -215
-  cns:       { left:525+265, top:715-215,  size:FONT_SIZE },
+  const FONT_SIZE = 28;
+  const FIELDS_TL = {
+    nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
+    dn:        { left:365, top:443,  size:FONT_SIZE },
+    telefone:  { left:720, top:443,  size:FONT_SIZE },
+    convenio:  { left:235, top:500,  size:FONT_SIZE },
+    cns:       { left:790, top:500,  size:FONT_SIZE },
+    cpf:       { left:475, top:555,  size:FONT_SIZE },
+    nomeMae:   { left:275, top:602,  size:FONT_SIZE },
+  };
 
-  // CPF: x -50, y -215
-  cpf:       { left:525-50, top:770-215,  size:FONT_SIZE },
-
-  // Nome da mãe: x +70, y -228
-  nomeMae:   { left:205+70, top:830-228,  size:FONT_SIZE },
-};
-
-
-  // Converte left/top em PX para coordenada PDF (PT) em A4, aplicando offsets globais
   function TL_withOffset(left, top, fontSizePx){
     const x_pt = (left + state.offX) * SCALE;
     const y_pt = PAGE_H - ((top + state.offY) * SCALE) - (fontSizePx * SCALE);
@@ -140,18 +144,11 @@ const FIELDS_TL = {
     const pdfDoc = await PDFDocument.create();
     const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
 
-    // Fundo: imagem ocupa a largura de A4 e escala proporcional
     const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer());
     const type = IMG_SRC.split('.').pop().toLowerCase();
     const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
-    page.drawImage(img, {
-      x: 0,
-      y: 0,
-      width: PAGE_W,
-      height: IMG_HEIGHT * SCALE
-    });
+    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
 
-    // Grade (também em A4/PT)
     if (state.showGrid){
       const stepPx = 50;
       for(let x=0;x<=IMG_WIDTH;x+=stepPx){
@@ -168,20 +165,20 @@ const FIELDS_TL = {
     const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-    const dn = toDateBR(dados.nascimento||'');
-    const tel = (dados.celular||'').replace(/\s+/g,' ').trim();
+    const dnBoxes = formatDNBoxes(dados.nascimento||'');
+    const tel = formatPhone(dados.celular||'');
     const conv = 'SUS';
     const cns = (dados.cns||'').trim();
-    const cpf = (dados.cpf||'').trim();
+    const cpf = formatCPF(dados.cpf||'');
     const mae = (dados.nomeMae||'').trim();
 
-    const VALUES = { nome:nomeCompleto, dn, telefone:tel, convenio:conv, cns, cpf, nomeMae:mae };
+    const VALUES = { nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv, cns, cpf, nomeMae:mae };
 
     Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
       const value = VALUES[key];
       if(!value) return;
-      const sizePt = (cfg.size || 12) * SCALE; // fonte escala 1:1 com o fundo
-      const { x, y } = TL_withOffset(cfg.left, cfg.top, cfg.size || 12);
+      const sizePt = (cfg.size||12) * SCALE;
+      const { x, y } = TL_withOffset(cfg.left, cfg.top, cfg.size||12);
       page.drawText(String(value), {
         x, y,
         size: sizePt,
@@ -190,7 +187,7 @@ const FIELDS_TL = {
       });
     });
 
-    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); state.blobUrl=null; }
+    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); }
     const bytes = await pdfDoc.save();
     const blob = new Blob([bytes], { type:'application/pdf' });
     state.blobUrl = URL.createObjectURL(blob);
@@ -198,32 +195,32 @@ const FIELDS_TL = {
     $('#btnDownload').href = state.blobUrl;
   }
 
-  // Offsets (inputs e botões)
   const offXInput = document.getElementById('offX');
   const offYInput = document.getElementById('offY');
   const syncOffsets = ()=> {
-    state.offX = parseInt(offXInput.value || '0', 10);
-    state.offY = parseInt(offYInput.value || '0', 10);
+    state.offX = parseInt(offXInput.value||'0',10);
+    state.offY = parseInt(offYInput.value||'0',10);
   };
   syncOffsets();
 
   document.querySelectorAll('[data-dx]').forEach(btn=>{
-    btn.onclick = ()=> { syncOffsets(); state.offX += parseInt(btn.getAttribute('data-dx'),10); offXInput.value = state.offX; generate(); };
+    btn.onclick = ()=>{ syncOffsets(); state.offX += parseInt(btn.getAttribute('data-dx'),10); offXInput.value=state.offX; generate(); };
   });
   document.querySelectorAll('[data-dy]').forEach(btn=>{
-    btn.onclick = ()=> { syncOffsets(); state.offY += parseInt(btn.getAttribute('data-dy'),10); offYInput.value = state.offY; generate(); };
+    btn.onclick = ()=>{ syncOffsets(); state.offY += parseInt(btn.getAttribute('data-dy'),10); offYInput.value=state.offY; generate(); };
   });
   offXInput.onchange = ()=>{ syncOffsets(); generate(); };
   offYInput.onchange = ()=>{ syncOffsets(); generate(); };
 
-  // Primeira render e re-render em hashchange
   generate();
   window.addEventListener('hashchange', generate);
 
-  // Gerar e Imprimir
   $('#btnGen').onclick = generate;
-  $('#btnPrint').onclick = () => { window.open(state.blobUrl, '_blank', 'noopener'); };
-  $('#btnToggleGrid').onclick = ()=>{ state.showGrid = !state.showGrid; generate(); };
+  $('#btnPrint').onclick = () => {
+    const ifr = document.getElementById('preview');
+    if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+  };
+  $('#btnToggleGrid').onclick = ()=>{ state.showGrid=!state.showGrid; generate(); };
 })();
 </script>
 </body>
