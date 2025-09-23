@@ -128,6 +128,9 @@
   // === Campos e coordenadas (px; origem topo-esquerdo) ===
   const FONT_SIZE = 28;
   const FIELDS_TL = {
+    // Nome da clínica (fixo): ajuste fino de left/top se precisar
+    clinica:   { left:250, top:335,  size:FONT_SIZE },
+
     nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
     dn:        { left:356, top:443,  size:FONT_SIZE },
     telefone:  { left:702, top:443,  size:FONT_SIZE },
@@ -136,9 +139,9 @@
     cpf:       { left:475, top:555,  size:FONT_SIZE },
     nomeMae:   { left:275, top:602,  size:FONT_SIZE },
 
-    // === “X” nas caixas de gênero (estimativa inicial; ajuste se quiser)
-    sexoF:     { left:210, top:455,  size:26,        bold:true }, // caixa F
-    sexoM:     { left:264, top:454,  size:26,        bold:true }, // caixa M
+    // “X” nas caixas de gênero
+    sexoF:     { left:210, top:455,  size:26,        bold:true },
+    sexoM:     { left:264, top:454,  size:26,        bold:true },
   };
 
   // px -> pt + offsets
@@ -191,7 +194,9 @@
     const markM = sexoRaw.startsWith('M') ? 'X' : '';
 
     const VALUES = { 
-      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv, cns, cpf, nomeMae:mae,
+      clinica: "HCB - Centro Cirúrgico",                  // <<< fixo
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, 
+      convenio:conv, cns, cpf, nomeMae:mae,
       sexoF: markF, sexoM: markM
     };
 
