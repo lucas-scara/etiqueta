@@ -2,129 +2,256 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Etiqueta / Requisição</title>
+  <title>Etiqueta / Requisição (PDF A4)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
   <style>
-    html,body{margin:0;padding:0}
-    body{font-family: Arial, Helvetica, sans-serif;}
-
-    /* Tamanho da imagem fornecida: 1240x1755 px */
-    .page{
-      position: relative;
-      width: 1240px;
-      height: 1755px;
-      margin: 0 auto;
-      background: url('template.jpg') no-repeat left top;
-      background-size: 1240px 1755px;
-    }
-
-    .field{
-      position: absolute;
-      font-size: 28px;           /* ajuste fino de tamanho aqui */
-      color: #000;
-      line-height: 1;
-      white-space: nowrap;
-    }
-
-    /* ====== POSIÇÕES (origem: canto superior esquerdo) ====== */
-    #nome      { left: 150px; top: 560px;  }
-    #dn        { left: 335px; top: 650px;  } /* DD/MM/AAAA */
-    #telefone  { left: 690px; top: 650px;  } /* (xx) xxxxx-xxxx */
-
-    #convenio  { left: 205px; top: 715px;  } /* sempre "SUS" */
-    #cns       { left: 525px; top: 715px;  } /* número da carteirinha (CNS) */
-
-    #cpf       { left: 525px; top: 770px;  }
-    #nomeMae   { left: 205px; top: 830px;  }
-
-    /* Barra de ações (opcional) */
-    .bar{
-      max-width:1240px;margin:10px auto;padding:8px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap
-    }
-    .btn{padding:10px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer}
+    body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .btn{padding:6px 10px;border:1px solid #dcdcdc;border-radius:6px;background:#f7f7f7;cursor:pointer;font-size:14px}
     .btn:hover{background:#efefef}
-    .hint{font-size:12px;color:#666;margin-top:4px;text-align:center}
-    .wrap{padding:10px}
-    @media print {
-      .bar,.wrap{ display:none !important; }
-      .page{ margin:0 }
-      @page { size: A4 portrait; margin: 10mm; } /* ajuste de margem da impressão */
-    }
+    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px}
+    details{margin:8px 0}
+    pre{background:#f7f7f7;padding:10px;border-radius:8px;overflow:auto}
+    input[type=number]{width:70px;padding:4px;font-size:14px}
+    label{align-self:center;font-size:14px}
   </style>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 
-  <div class="wrap">
-    <div class="bar">
-      <button class="btn" id="btnPrint">Imprimir</button>
-      <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar (PDF via impressão)</a>
-    </div>
-    <div class="hint">Se algum texto ficar fora do lugar, ajuste os valores <code>left/top</code> dos IDs no CSS.</div>
+  <div class="bar">
+    <button class="btn" id="btnGen">Gerar/Atualizar PDF</button>
+    <button class="btn" id="btnPrint">Imprimir</button>
+    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+
+    <label>ΔX:</label>
+    <button class="btn" data-dx="-10">-10</button>
+    <button class="btn" data-dx="-5">-5</button>
+    <button class="btn" data-dx="-1">-1</button>
+    <input id="offX" type="number" value="0" />
+    <button class="btn" data-dx="+1">+1</button>
+    <button class="btn" data-dx="+5">+5</button>
+    <button class="btn" data-dx="+10">+10</button>
+
+    <label style="margin-left:8px">ΔY:</label>
+    <button class="btn" data-dy="-10">-10</button>
+    <button class="btn" data-dy="-5">-5</button>
+    <button class="btn" data-dy="-1">-1</button>
+    <input id="offY" type="number" value="0" />
+    <button class="btn" data-dy="+1">+1</button>
+    <button class="btn" data-dy="+5">+5</button>
+    <button class="btn" data-dy="+10">+10</button>
+
+    <button class="btn" id="btnToggleGrid" title="Grade de calibração">Grade</button>
   </div>
 
-  <div class="page">
-    <div id="nome"     class="field"></div>
-    <div id="dn"       class="field"></div>
-    <div id="telefone" class="field"></div>
+  <details>
+    <summary>Debug (payload decodificado)</summary>
+    <pre id="debug"></pre>
+  </details>
+  <iframe id="preview"></iframe>
 
-    <div id="convenio" class="field"></div>
-    <div id="cns"      class="field"></div>
+<script>
+(function(){
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-    <div id="cpf"      class="field"></div>
-    <div id="nomeMae"  class="field"></div>
-  </div>
+  // --- imagem base (px) ---
+  const IMG_SRC    = 'template.jpg';
+  const IMG_WIDTH  = 1240;
+  const IMG_HEIGHT = 1755;
 
-  <script>
-  (function(){
-    // ---- utilitários ----
-    function getPayloadFromHash(){
-      const m = (location.hash||'').match(/[#&]d=([^&]+)/);
-      if(!m) return {};
+  // --- PDF A4 (pt) ---
+  const PAGE_W = 595;
+  const PAGE_H = 842;
+
+  // escala px -> pt
+  const SCALE = PAGE_W / IMG_WIDTH;
+
+  const state = {
+    blobUrl: null,
+    showGrid: false,
+    offX: 0,
+    offY: 0
+  };
+
+  const $ = s => document.querySelector(s);
+  const onlyDigits = s => (s||'').replace(/\D+/g,'');
+
+  // payload
+  function getPayload(){
+    const pick = (src) => {
+      const m = src.match(/[?#&]d=([^&]+)/);
+      if(!m) return null;
       try{
         const b64 = decodeURIComponent(m[1]);
         const json = decodeURIComponent(escape(atob(b64)));
         return JSON.parse(json);
-      }catch(e){
-        console.error('Falha ao ler payload do hash:', e);
-        return {};
+      }catch(e){ return null; }
+    };
+    return pick(location.hash) || pick(location.search) || {};
+  }
+
+  // === Datas ===
+  function dateDigits8(s){
+    const d = onlyDigits(s);
+    return d.length >= 8 ? d.slice(0,8) : '';
+  }
+  function toDateBR(s){
+    const d8 = dateDigits8(s);
+    if(!d8) return '';
+    return `${d8.slice(0,2)}/${d8.slice(2,4)}/${d8.slice(4,8)}`;
+  }
+  function formatDNBoxes(s){
+    const d8 = dateDigits8(s);
+    if(!d8) return '';
+    const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
+    return `${dd}     ${mm}   ${yyyy}`;
+  }
+
+  // === Máscaras ===
+  function formatPhone(s){
+    const d = onlyDigits(s);
+    if(d.length < 10) return s;
+    const ddd = d.slice(0,2);
+    const part1 = d.length===10 ? d.slice(2,6) : d.slice(2,7);
+    const part2 = d.length===10 ? d.slice(6)   : d.slice(7);
+    return `(${ddd}) ${part1}-${part2}`;
+  }
+  function formatCPF(s){
+    const d = onlyDigits(s);
+    if(d.length!==11) return s;
+    return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
+  }
+
+  // === Campos e coordenadas (px; origem topo-esquerdo) ===
+  const FONT_SIZE = 28;
+  const FIELDS_TL = {
+    // Nome da clínica (fixo): ajuste fino de left/top se precisar
+    clinica:   { left:300, top:275,  size:FONT_SIZE },
+
+    nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
+    dn:        { left:356, top:443,  size:FONT_SIZE },
+    telefone:  { left:702, top:443,  size:FONT_SIZE },
+    convenio:  { left:235, top:500,  size:FONT_SIZE },
+    cns:       { left:790, top:500,  size:FONT_SIZE },
+    cpf:       { left:475, top:555,  size:FONT_SIZE },
+    nomeMae:   { left:275, top:602,  size:FONT_SIZE },
+
+    // “X” nas caixas de gênero
+    sexoF:     { left:210, top:455,  size:26,        bold:true },
+    sexoM:     { left:264, top:454,  size:26,        bold:true },
+  };
+
+  // px -> pt + offsets
+  function TL_withOffset(left, top, fontSizePx){
+    const x_pt = (left + state.offX) * SCALE;
+    const y_pt = PAGE_H - ((top + state.offY) * SCALE) - (fontSizePx * SCALE);
+    return { x: x_pt, y: y_pt };
+  }
+
+  async function generate(){
+    const dados = getPayload();
+    $('#debug').textContent = JSON.stringify(dados,null,2);
+
+    const pdfDoc = await PDFDocument.create();
+    const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
+
+    // fundo
+    const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer());
+    const type = IMG_SRC.split('.').pop().toLowerCase();
+    const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
+
+    // grade (opcional)
+    if (state.showGrid){
+      const stepPx = 50;
+      for(let x=0;x<=IMG_WIDTH;x+=stepPx){
+        const X = x * SCALE;
+        page.drawLine({ start:{x:X, y:0}, end:{x:X, y:PAGE_H}, thickness:(x%100===0?0.8:0.3), color:rgb(0.7,0.7,1) });
+      }
+      for(let y=0;y<=IMG_HEIGHT;y+=stepPx){
+        const Y = y * SCALE;
+        page.drawLine({ start:{x:0, y:Y}, end:{x:PAGE_W, y:Y}, thickness:(y%100===0?0.8:0.3), color:rgb(0.7,0.7,1) });
       }
     }
-    const onlyDigits = s => (s||'').replace(/\D+/g,'');
-    const toDateBR = (s) => {
-      if(!s) return '';
-      // já vem dd/mm/aaaa?
-      const mm = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-      if(mm) return `${mm[1]}/${mm[2]}/${mm[3]}`;
-      // extrai só números
-      const d = onlyDigits(s);
-      if(d.length === 8) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
-      // remove hora se tiver
-      const h = s.match(/^(\d{2}\/\d{2}\/\d{4})/);
-      return h ? h[1] : s;
-    };
 
-    // ---- dados vindos do bookmarklet ----
-    const dados = getPayloadFromHash();
+    const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // ---- preenchimento dos campos ----
+    // valores
     const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-    document.getElementById('nome').textContent = nomeCompleto;
-    document.getElementById('dn').textContent = toDateBR(dados.nascimento||'');
-    document.getElementById('telefone').textContent = (dados.celular||'').replace(/\s+/g,' ').trim();
+    const dnBoxes = formatDNBoxes(dados.nascimento||'');
+    const tel = formatPhone(dados.celular||'');
+    const conv = 'SUS';
+    const cns = (dados.cns||'').trim();
+    const cpf = formatCPF(dados.cpf||'');
+    const mae = (dados.nomeMae||'').trim();
 
-    document.getElementById('convenio').textContent = 'SUS';
-    document.getElementById('cns').textContent = (dados.cns||'').trim();
-    document.getElementById('cpf').textContent = (dados.cpf||'').trim();
-    document.getElementById('nomeMae').textContent = (dados.nomeMae||'').trim();
+    const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
+    const markF = sexoRaw.startsWith('F') ? 'X' : '';
+    const markM = sexoRaw.startsWith('M') ? 'X' : '';
 
-    // ---- ações ----
-    document.getElementById('btnPrint').onclick = () => window.print();
-    // dica: o botão "Baixar" aqui só abre a caixa de diálogo da impressão (para salvar como PDF).
-    document.getElementById('btnDownload').onclick = (e) => {
-      e.preventDefault();
-      window.print();
+    const VALUES = { 
+      clinica: "HCB - Centro Cirúrgico",                  // <<< fixo
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, 
+      convenio:conv, cns, cpf, nomeMae:mae,
+      sexoF: markF, sexoM: markM
     };
-  })();
-  </script>
+
+    // desenhar
+    Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
+      const value = VALUES[key];
+      if(value==null || value==='') return;
+      const sizePt = (cfg.size||12) * SCALE;
+      const { x, y } = TL_withOffset(cfg.left, cfg.top, cfg.size||12);
+      page.drawText(String(value), {
+        x, y,
+        size: sizePt,
+        font: cfg.bold ? helvB : helv,
+        color: rgb(0,0,0)
+      });
+    });
+
+    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); }
+    const bytes = await pdfDoc.save();
+    const blob = new Blob([bytes], { type:'application/pdf' });
+    state.blobUrl = URL.createObjectURL(blob);
+    $('#preview').src = state.blobUrl;
+    $('#btnDownload').href = state.blobUrl;
+  }
+
+  // offsets
+  const offXInput = document.getElementById('offX');
+  const offYInput = document.getElementById('offY');
+  const syncOffsets = ()=> {
+    state.offX = parseInt(offXInput.value||'0',10);
+    state.offY = parseInt(offYInput.value||'0',10);
+  };
+  syncOffsets();
+
+  document.querySelectorAll('[data-dx]').forEach(btn=>{
+    btn.onclick = ()=>{ syncOffsets(); state.offX += parseInt(btn.getAttribute('data-dx'),10); offXInput.value=state.offX; generate(); };
+  });
+  document.querySelectorAll('[data-dy]').forEach(btn=>{
+    btn.onclick = ()=>{ syncOffsets(); state.offY += parseInt(btn.getAttribute('data-dy'),10); offYInput.value=state.offY; generate(); };
+  });
+  offXInput.onchange = ()=>{ syncOffsets(); generate(); };
+  offYInput.onchange = ()=>{ syncOffsets(); generate(); };
+
+  // render inicial + hashchange
+  generate();
+  window.addEventListener('hashchange', generate);
+
+  // ações
+  $('#btnGen').onclick = generate;
+  $('#btnPrint').onclick = () => {
+    const ifr = document.getElementById('preview');
+    if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+  };
+  $('#btnToggleGrid').onclick = ()=>{ state.showGrid=!state.showGrid; generate(); };
+})();
+</script>
 </body>
 </html>
