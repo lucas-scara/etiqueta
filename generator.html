@@ -1,1 +1,186 @@
-<!doctype html> <html lang="pt-BR"> <head> <meta charset="utf-8" /> <title>Etiqueta / Requisição (PDF A4)</title> <meta name="viewport" content="width=device-width,initial-scale=1" /> <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"> <meta http-equiv="Pragma" content="no-cache"> <style> body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px} .bar{ display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px; justify-content:center; align-items:center; } .btn{padding:8px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer;font-size:14px} .btn:hover{background:#efefef} iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px} </style> <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script> </head> <body> <div class="bar"> <button class="btn" id="btnPrint">Imprimir</button> <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a> </div> <iframe id="preview"></iframe> <script> (function(){ const { PDFDocument, StandardFonts, rgb } = PDFLib; // --- imagem base (px) --- const IMG_SRC = 'template.jpg'; const IMG_WIDTH = 1240; const IMG_HEIGHT = 1755; // --- PDF A4 (pt) --- const PAGE_W = 595; const PAGE_H = 842; // escala px -> pt const SCALE = PAGE_W / IMG_WIDTH; const state = { blobUrl: null }; const $ = s => document.querySelector(s); const onlyDigits = s => (s||'').replace(/\D+/g,''); // payload function getPayload(){ const pick = (src) => { const m = src.match(/[?#&]d=([^&]+)/); if(!m) return null; try{ const b64 = decodeURIComponent(m[1]); const json = decodeURIComponent(escape(atob(b64))); return JSON.parse(json); }catch(e){ return null; } }; return pick(location.hash) || pick(location.search) || {}; } // === Datas === function dateDigits8(s){ const d = onlyDigits(s); return d.length >= 8 ? d.slice(0,8) : ''; } function formatDNBoxes(s){ const d8 = dateDigits8(s); if(!d8) return ''; const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8); // seu espaçamento preferido return ${dd} ${mm} ${yyyy}; } // === Máscaras === function formatPhone(s){ const d = onlyDigits(s); if(d.length < 10) return s; const ddd = d.slice(0,2); const part1 = d.length===10 ? d.slice(2,6) : d.slice(2,7); const part2 = d.length===10 ? d.slice(6) : d.slice(7); return (${ddd}) ${part1}-${part2}; } function formatCPF(s){ const d = onlyDigits(s); if(d.length!==11) return s; return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11); } // === Campos e coordenadas (px; origem topo-esquerdo) === const FONT_SIZE = 28; const FIELDS_TL = { // Nome da clínica (fixo) clinica: { left:300, top:275, size:FONT_SIZE }, nome: { left:180, top:390, size:FONT_SIZE, bold:true }, dn: { left:356, top:443, size:FONT_SIZE }, telefone: { left:702, top:443, size:FONT_SIZE }, convenio: { left:235, top:500, size:FONT_SIZE }, cns: { left:790, top:500, size:FONT_SIZE }, cpf: { left:475, top:555, size:FONT_SIZE }, nomeMae: { left:275, top:602, size:FONT_SIZE }, // “X” nas caixas de gênero sexoF: { left:210, top:455, size:26, bold:true }, sexoM: { left:264, top:454, size:26, bold:true }, }; // px -> pt function TL(left, top, fontSizePx){ const x_pt = left * SCALE; const y_pt = PAGE_H - (top * SCALE) - (fontSizePx * SCALE); return { x: x_pt, y: y_pt }; } async function generate(){ const dados = getPayload(); const pdfDoc = await PDFDocument.create(); const page = pdfDoc.addPage([PAGE_W, PAGE_H]); // fundo const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer()); const type = IMG_SRC.split('.').pop().toLowerCase(); const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes); page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE }); const helv = await pdfDoc.embedFont(StandardFonts.Helvetica); const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold); // valores const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim(); const dnBoxes = formatDNBoxes(dados.nascimento||''); const tel = formatPhone(dados.celular||''); const conv = 'SUS'; const cns = (dados.cns||'').trim(); const cpf = formatCPF(dados.cpf||''); const mae = (dados.nomeMae||'').trim(); const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase(); const VALUES = { clinica: "HCB - Centro Cirúrgico", nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv, cns, cpf, nomeMae:mae, sexoF: sexoRaw.startsWith('F') ? 'X' : '', sexoM: sexoRaw.startsWith('M') ? 'X' : '' }; // desenhar Object.entries(FIELDS_TL).forEach(([key, cfg])=>{ const value = VALUES[key]; if(value==null || value==='') return; const sizePt = (cfg.size||12) * SCALE; const { x, y } = TL(cfg.left, cfg.top, cfg.size||12); page.drawText(String(value), { x, y, size: sizePt, font: cfg.bold ? helvB : helv, color: rgb(0,0,0) }); }); if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); } const bytes = await pdfDoc.save(); const blob = new Blob([bytes], { type:'application/pdf' }); state.blobUrl = URL.createObjectURL(blob); document.getElementById('preview').src = state.blobUrl; document.getElementById('btnDownload').href = state.blobUrl; } // gerar ao abrir e quando o hash mudar (novo paciente) generate(); window.addEventListener('hashchange', generate); // imprimir direto do iframe document.getElementById('btnPrint').onclick = () => { const ifr = document.getElementById('preview'); if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); } }; })(); </script> </body> </html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Etiqueta / Requisição (PDF A4)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <style>
+    body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px}
+    .bar{
+      display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;
+      justify-content:center; align-items:center;
+    }
+    .btn{padding:8px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer;font-size:14px}
+    .btn:hover{background:#efefef}
+    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px}
+  </style>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+
+  <div class="bar">
+    <button class="btn" id="btnPrint">Imprimir</button>
+    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+  </div>
+
+  <iframe id="preview"></iframe>
+
+<script>
+(function(){
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+  // --- imagem base (px) ---
+  const IMG_SRC    = 'template.jpg';
+  const IMG_WIDTH  = 1240;
+  const IMG_HEIGHT = 1755;
+
+  // --- PDF A4 (pt) ---
+  const PAGE_W = 595;
+  const PAGE_H = 842;
+
+  // escala px -> pt
+  const SCALE = PAGE_W / IMG_WIDTH;
+
+  const state = { blobUrl: null };
+
+  const $ = s => document.querySelector(s);
+  const onlyDigits = s => (s||'').replace(/\D+/g,'');
+
+  // payload
+  function getPayload(){
+    const pick = (src) => {
+      const m = src.match(/[?#&]d=([^&]+)/);
+      if(!m) return null;
+      try{
+        const b64 = decodeURIComponent(m[1]);
+        const json = decodeURIComponent(escape(atob(b64)));
+        return JSON.parse(json);
+      }catch(e){ return null; }
+    };
+    return pick(location.hash) || pick(location.search) || {};
+  }
+
+  // === Datas ===
+  function dateDigits8(s){
+    const d = onlyDigits(s);
+    return d.length >= 8 ? d.slice(0,8) : '';
+  }
+  function formatDNBoxes(s){
+    const d8 = dateDigits8(s);
+    if(!d8) return '';
+    const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
+    // seu espaçamento preferido
+    return `${dd}     ${mm}   ${yyyy}`;
+  }
+
+  // === Máscaras ===
+  function formatPhone(s){
+    const d = onlyDigits(s);
+    if(d.length < 10) return s;
+    const ddd = d.slice(0,2);
+    const part1 = d.length===10 ? d.slice(2,6) : d.slice(2,7);
+    const part2 = d.length===10 ? d.slice(6)   : d.slice(7);
+    return `(${ddd}) ${part1}-${part2}`;
+  }
+  function formatCPF(s){
+    const d = onlyDigits(s);
+    if(d.length!==11) return s;
+    return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
+  }
+
+  // === Campos e coordenadas (px; origem topo-esquerdo) ===
+  const FONT_SIZE = 28;
+  const FIELDS_TL = {
+    // Nome da clínica (fixo)
+    clinica:   { left:300, top:275,  size:FONT_SIZE },
+
+    nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
+    dn:        { left:356, top:443,  size:FONT_SIZE },
+    telefone:  { left:702, top:443,  size:FONT_SIZE },
+    convenio:  { left:235, top:500,  size:FONT_SIZE },
+    cns:       { left:790, top:500,  size:FONT_SIZE },
+    cpf:       { left:475, top:555,  size:FONT_SIZE },
+    nomeMae:   { left:275, top:602,  size:FONT_SIZE },
+
+    // “X” nas caixas de gênero
+    sexoF:     { left:210, top:455,  size:26,        bold:true },
+    sexoM:     { left:264, top:454,  size:26,        bold:true },
+  };
+
+  // px -> pt
+  function TL(left, top, fontSizePx){
+    const x_pt = left * SCALE;
+    const y_pt = PAGE_H - (top * SCALE) - (fontSizePx * SCALE);
+    return { x: x_pt, y: y_pt };
+  }
+
+  async function generate(){
+    const dados = getPayload();
+
+    const pdfDoc = await PDFDocument.create();
+    const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
+
+    // fundo
+    const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer());
+    const type = IMG_SRC.split('.').pop().toLowerCase();
+    const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
+
+    const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    // valores
+    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
+    const dnBoxes = formatDNBoxes(dados.nascimento||'');
+    const tel = formatPhone(dados.celular||'');
+    const conv = 'SUS';
+    const cns = (dados.cns||'').trim();
+    const cpf = formatCPF(dados.cpf||'');
+    const mae = (dados.nomeMae||'').trim();
+    const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
+
+    const VALUES = { 
+      clinica: "HCB - Centro Cirúrgico",
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
+      cns, cpf, nomeMae:mae,
+      sexoF: sexoRaw.startsWith('F') ? 'X' : '',
+      sexoM: sexoRaw.startsWith('M') ? 'X' : ''
+    };
+
+    // desenhar
+    Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
+      const value = VALUES[key];
+      if(value==null || value==='') return;
+      const sizePt = (cfg.size||12) * SCALE;
+      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
+      page.drawText(String(value), {
+        x, y,
+        size: sizePt,
+        font: cfg.bold ? helvB : helv,
+        color: rgb(0,0,0)
+      });
+    });
+
+    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); }
+    const bytes = await pdfDoc.save();
+    const blob = new Blob([bytes], { type:'application/pdf' });
+    state.blobUrl = URL.createObjectURL(blob);
+    document.getElementById('preview').src = state.blobUrl;
+    document.getElementById('btnDownload').href = state.blobUrl;
+  }
+
+  // gerar ao abrir e quando o hash mudar (novo paciente)
+  generate();
+  window.addEventListener('hashchange', generate);
+
+  // imprimir direto do iframe
+  document.getElementById('btnPrint').onclick = () => {
+    const ifr = document.getElementById('preview');
+    if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+  };
+})();
+</script>
+</body>
+</html>
