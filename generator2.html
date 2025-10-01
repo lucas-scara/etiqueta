@@ -7,50 +7,72 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <style>
+    :root{--w:920px}
     body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px}
-    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-    .btn{padding:6px 10px;border:1px solid #dcdcdc;border-radius:6px;background:#f7f7f7;cursor:pointer;font-size:14px}
+    .panel{
+      width:100%;max-width:var(--w);margin:8px auto 12px auto;
+      display:grid;grid-template-columns:1fr;gap:12px;
+    }
+    .panel label{font-size:14px;color:#333}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    .row .spacer{flex:1}
+    select,input[type=text],textarea,input[type=date]{
+      width:100%;padding:10px;border:1px solid #dcdcdc;border-radius:8px;font-size:14px;background:#fff
+    }
+    textarea{min-height:72px;resize:vertical}
+    .bar{
+      display:flex;gap:12px;flex-wrap:wrap;margin:8px auto 10px auto;
+      justify-content:center; align-items:center; max-width:var(--w);
+    }
+    .btn{padding:8px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer;font-size:14px}
     .btn:hover{background:#efefef}
-    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px}
-    details{margin:8px 0}
-    pre{background:#f7f7f7;padding:10px;border-radius:8px;overflow:auto}
-    input[type=number]{width:70px;padding:4px;font-size:14px}
-    label{align-self:center;font-size:14px}
+    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px;max-width:var(--w);margin:0 auto;display:block}
+    .hidden{display:none !important}
+    .hint{font-size:12px;color:#666}
   </style>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 
-  <div class="bar">
-    <button class="btn" id="btnGen">Gerar/Atualizar PDF</button>
-    <button class="btn" id="btnPrint">Imprimir</button>
-    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+  <!-- Painel de opções -->
+  <div class="panel" id="controls">
+    <div class="field">
+      <label for="clinicaSel">Nome da clínica</label>
+      <select id="clinicaSel">
+        <option>HCB - Centro Cirúrgico</option>
+        <option>HCB - Centro de Endoscopia</option>
+      </select>
+    </div>
 
-    <label>ΔX:</label>
-    <button class="btn" data-dx="-10">-10</button>
-    <button class="btn" data-dx="-5">-5</button>
-    <button class="btn" data-dx="-1">-1</button>
-    <input id="offX" type="number" value="0" />
-    <button class="btn" data-dx="+1">+1</button>
-    <button class="btn" data-dx="+5">+5</button>
-    <button class="btn" data-dx="+10">+10</button>
+    <div class="field">
+      <label>Data</label>
+      <div class="row">
+        <label><input type="radio" name="dataModo" id="dataHoje" checked> Hoje</label>
+        <label><input type="radio" name="dataModo" id="dataOutra"> Outra data</label>
+        <div class="spacer"></div>
+        <input type="date" id="dataOutraVal" class="hidden">
+      </div>
+      <div class="hint">Se escolher “Outra data”, o campo aparece ao lado.</div>
+    </div>
 
-    <label style="margin-left:8px">ΔY:</label>
-    <button class="btn" data-dy="-10">-10</button>
-    <button class="btn" data-dy="-5">-5</button>
-    <button class="btn" data-dy="-1">-1</button>
-    <input id="offY" type="number" value="0" />
-    <button class="btn" data-dy="+1">+1</button>
-    <button class="btn" data-dy="+5">+5</button>
-    <button class="btn" data-dy="+10">+10</button>
+    <div class="field">
+      <label for="naturezaInp">Natureza do material</label>
+      <textarea id="naturezaInp" placeholder="Ex.: Fragmento de ..."></textarea>
+    </div>
 
-    <button class="btn" id="btnToggleGrid" title="Grade de calibração">Grade</button>
+    <div class="field">
+      <label for="resumoInp">Resumo clínico</label>
+      <textarea id="resumoInp" placeholder="Ex.: Histórico, hipótese diagnóstica, etc."></textarea>
+    </div>
   </div>
 
-  <details>
-    <summary>Debug (payload decodificado)</summary>
-    <pre id="debug"></pre>
-  </details>
+  <!-- Ações -->
+  <div class="bar">
+    <button class="btn" id="btnPrint">Imprimir</button>
+    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+  </div>
+
   <iframe id="preview"></iframe>
 
 <script>
@@ -69,17 +91,12 @@
   // escala px -> pt
   const SCALE = PAGE_W / IMG_WIDTH;
 
-  const state = {
-    blobUrl: null,
-    showGrid: false,
-    offX: 0,
-    offY: 0
-  };
+  const state = { blobUrl: null };
 
   const $ = s => document.querySelector(s);
   const onlyDigits = s => (s||'').replace(/\D+/g,'');
 
-  // payload
+  // payload (dados vindos do bookmarklet)
   function getPayload(){
     const pick = (src) => {
       const m = src.match(/[?#&]d=([^&]+)/);
@@ -93,15 +110,10 @@
     return pick(location.hash) || pick(location.search) || {};
   }
 
-  // === Datas ===
+  // === Datas / máscaras ===
   function dateDigits8(s){
     const d = onlyDigits(s);
     return d.length >= 8 ? d.slice(0,8) : '';
-  }
-  function toDateBR(s){
-    const d8 = dateDigits8(s);
-    if(!d8) return '';
-    return `${d8.slice(0,2)}/${d8.slice(2,4)}/${d8.slice(4,8)}`;
   }
   function formatDNBoxes(s){
     const d8 = dateDigits8(s);
@@ -109,8 +121,6 @@
     const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
     return `${dd}     ${mm}   ${yyyy}`;
   }
-
-  // === Máscaras ===
   function formatPhone(s){
     const d = onlyDigits(s);
     if(d.length < 10) return s;
@@ -124,36 +134,115 @@
     if(d.length!==11) return s;
     return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
   }
+  function formatDateBRFromInput(ymd){
+    if(!ymd) return '';
+    const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return '';
+    return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+  function todayBR(){
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = d.getFullYear();
+    return `${dd}/${mm}/${yy}`;
+  }
 
   // === Campos e coordenadas (px; origem topo-esquerdo) ===
   const FONT_SIZE = 28;
   const FIELDS_TL = {
-    // Nome da clínica (fixo): ajuste fino de left/top se precisar
-    clinica:   { left:300, top:275,  size:FONT_SIZE },
+    // Nome da clínica (selecionável)
+    clinica:     { left:300, top:275,  size:FONT_SIZE },
 
-    nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
-    dn:        { left:356, top:443,  size:FONT_SIZE },
-    telefone:  { left:702, top:443,  size:FONT_SIZE },
-    convenio:  { left:235, top:500,  size:FONT_SIZE },
-    cns:       { left:790, top:500,  size:FONT_SIZE },
-    cpf:       { left:475, top:555,  size:FONT_SIZE },
-    nomeMae:   { left:275, top:602,  size:FONT_SIZE },
+    nome:        { left:180, top:390,  size:FONT_SIZE, bold:true },
+    dn:          { left:356, top:443,  size:FONT_SIZE },
+    telefone:    { left:702, top:443,  size:FONT_SIZE },
+    convenio:    { left:235, top:500,  size:FONT_SIZE },
+    cns:         { left:790, top:500,  size:FONT_SIZE },
+    cpf:         { left:475, top:555,  size:FONT_SIZE },
+    nomeMae:     { left:275, top:602,  size:FONT_SIZE },
+
+    // Natureza do material e Resumo clínico
+    natureza:    { left:275, top:660,  size:24, wrapPx: 820 },
+    resumo:      { left:275, top:730,  size:24, wrapPx: 820 },
 
     // “X” nas caixas de gênero
-    sexoF:     { left:210, top:455,  size:26,        bold:true },
-    sexoM:     { left:264, top:454,  size:26,        bold:true },
+    sexoF:       { left:210, top:455,  size:26, bold:true },
+    sexoM:       { left:264, top:454,  size:26, bold:true },
+
+    // Data da coleta (rodapé)
+    dataColeta:  { left:210, top:1210, size:24 }
   };
 
-  // px -> pt + offsets
-  function TL_withOffset(left, top, fontSizePx){
-    const x_pt = (left + state.offX) * SCALE;
-    const y_pt = PAGE_H - ((top + state.offY) * SCALE) - (fontSizePx * SCALE);
+  // px -> pt
+  function TL(left, top, fontSizePx){
+    const x_pt = left * SCALE;
+    const y_pt = PAGE_H - (top * SCALE) - (fontSizePx * SCALE);
     return { x: x_pt, y: y_pt };
   }
 
+  // quebra de linha simples para pdf-lib
+  function wrapLines(text, font, sizePt, maxWidthPt){
+    if(!text) return [''];
+    const words = String(text).split(/\s+/);
+    const lines = [];
+    let line = '';
+    const width = t => font.widthOfTextAtSize(t, sizePt);
+    words.forEach(w=>{
+      const test = line ? (line + ' ' + w) : w;
+      if(width(test) <= maxWidthPt) {
+        line = test;
+      } else {
+        if(line) lines.push(line);
+        line = w;
+      }
+    });
+    if(line) lines.push(line);
+    return lines;
+  }
+
+  // elementos do painel
+  const selClinica   = document.getElementById('clinicaSel');
+  const rHoje        = document.getElementById('dataHoje');
+  const rOutra       = document.getElementById('dataOutra');
+  const inpOutraData = document.getElementById('dataOutraVal');
+  const inpNatureza  = document.getElementById('naturezaInp');
+  const inpResumo    = document.getElementById('resumoInp');
+
+  function syncDataInputs(){
+    const show = rOutra.checked;
+    inpOutraData.classList.toggle('hidden', !show);
+    if(show) setTimeout(()=>inpOutraData.focus(), 50);
+  }
+
+  // preferências simples
+  const LS_KEY = 'etiqueta_prefs_v2';
+  function savePrefs(){
+    const prefs = {
+      clinica: selClinica.value,
+      dataModo: rHoje.checked ? 'hoje' : 'outra',
+      outra: inpOutraData.value,
+      natureza: inpNatureza.value,
+      resumo: inpResumo.value
+    };
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(prefs)); }catch(_){}
+  }
+  function loadPrefs(){
+    try{
+      const p = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if(p.clinica) selClinica.value = p.clinica;
+      if(p.dataModo === 'outra'){ rOutra.checked = true; rHoje.checked = false; }
+      if(p.outra) inpOutraData.value = p.outra;
+      if(p.natureza) inpNatureza.value = p.natureza;
+      if(p.resumo) inpResumo.value = p.resumo;
+    }catch(_){}
+    syncDataInputs();
+  }
+  loadPrefs();
+
+  // gerar PDF
   async function generate(){
     const dados = getPayload();
-    $('#debug').textContent = JSON.stringify(dados,null,2);
 
     const pdfDoc = await PDFDocument.create();
     const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
@@ -164,23 +253,10 @@
     const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
     page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
 
-    // grade (opcional)
-    if (state.showGrid){
-      const stepPx = 50;
-      for(let x=0;x<=IMG_WIDTH;x+=stepPx){
-        const X = x * SCALE;
-        page.drawLine({ start:{x:X, y:0}, end:{x:X, y:PAGE_H}, thickness:(x%100===0?0.8:0.3), color:rgb(0.7,0.7,1) });
-      }
-      for(let y=0;y<=IMG_HEIGHT;y+=stepPx){
-        const Y = y * SCALE;
-        page.drawLine({ start:{x:0, y:Y}, end:{x:PAGE_W, y:Y}, thickness:(y%100===0?0.8:0.3), color:rgb(0.7,0.7,1) });
-      }
-    }
-
     const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // valores
+    // valores formatados (originais + painel)
     const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
     const dnBoxes = formatDNBoxes(dados.nascimento||'');
     const tel = formatPhone(dados.celular||'');
@@ -188,24 +264,33 @@
     const cns = (dados.cns||'').trim();
     const cpf = formatCPF(dados.cpf||'');
     const mae = (dados.nomeMae||'').trim();
-
     const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
-    const markF = sexoRaw.startsWith('F') ? 'X' : '';
-    const markM = sexoRaw.startsWith('M') ? 'X' : '';
 
-    const VALUES = { 
-      clinica: "HCB - Centro Cirúrgico",                  // <<< fixo
-      nome:nomeCompleto, dn:dnBoxes, telefone:tel, 
-      convenio:conv, cns, cpf, nomeMae:mae,
-      sexoF: markF, sexoM: markM
+    const clinica = selClinica.value;
+    const natureza = (inpNatureza.value || '').trim();
+    const resumo   = (inpResumo.value || '').trim();
+
+    const dataColeta = rHoje.checked
+      ? todayBR()
+      : formatDateBRFromInput(inpOutraData.value);
+
+    // textos normais
+    const VALUES = {
+      clinica,
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
+      cns, cpf, nomeMae:mae,
+      sexoF: sexoRaw.startsWith('F') ? 'X' : '',
+      sexoM: sexoRaw.startsWith('M') ? 'X' : '',
+      dataColeta
     };
 
-    // desenhar
+    // desenhar campos “simples”
     Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
+      if(key==='natureza' || key==='resumo') return; // tratamos já já
       const value = VALUES[key];
       if(value==null || value==='') return;
       const sizePt = (cfg.size||12) * SCALE;
-      const { x, y } = TL_withOffset(cfg.left, cfg.top, cfg.size||12);
+      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
       page.drawText(String(value), {
         x, y,
         size: sizePt,
@@ -214,43 +299,49 @@
       });
     });
 
+    // “Natureza do material” e “Resumo clínico” com quebra de linha
+    for (const key of ['natureza','resumo']) {
+      const cfg = FIELDS_TL[key];
+      const text = (key==='natureza' ? natureza : resumo);
+      if(!text) continue;
+      const sizePt = (cfg.size||12) * SCALE;
+      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
+      const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
+      const lines = wrapLines(text, helv, sizePt, maxWidthPt);
+      const lineHeight = sizePt * 1.25;
+      lines.forEach((ln, i)=>{
+        page.drawText(ln, { x, y: y - (i*lineHeight), size:sizePt, font:helv, color: rgb(0,0,0) });
+      });
+    }
+
     if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); }
     const bytes = await pdfDoc.save();
     const blob = new Blob([bytes], { type:'application/pdf' });
     state.blobUrl = URL.createObjectURL(blob);
-    $('#preview').src = state.blobUrl;
-    $('#btnDownload').href = state.blobUrl;
+    document.getElementById('preview').src = state.blobUrl;
+    document.getElementById('btnDownload').href = state.blobUrl;
+
+    savePrefs();
   }
 
-  // offsets
-  const offXInput = document.getElementById('offX');
-  const offYInput = document.getElementById('offY');
-  const syncOffsets = ()=> {
-    state.offX = parseInt(offXInput.value||'0',10);
-    state.offY = parseInt(offYInput.value||'0',10);
-  };
-  syncOffsets();
-
-  document.querySelectorAll('[data-dx]').forEach(btn=>{
-    btn.onclick = ()=>{ syncOffsets(); state.offX += parseInt(btn.getAttribute('data-dx'),10); offXInput.value=state.offX; generate(); };
+  // eventos do painel -> regerar
+  const controls = document.getElementById('controls');
+  ['change','input'].forEach(evt=>{
+    controls.addEventListener(evt, e=>{
+      if(e.target.id === 'dataHoje' || e.target.id === 'dataOutra') syncDataInputs();
+      generate();
+    });
   });
-  document.querySelectorAll('[data-dy]').forEach(btn=>{
-    btn.onclick = ()=>{ syncOffsets(); state.offY += parseInt(btn.getAttribute('data-dy'),10); offYInput.value=state.offY; generate(); };
-  });
-  offXInput.onchange = ()=>{ syncOffsets(); generate(); };
-  offYInput.onchange = ()=>{ syncOffsets(); generate(); };
 
-  // render inicial + hashchange
+  // gerar ao abrir e quando o hash mudar (novo paciente)
   generate();
   window.addEventListener('hashchange', generate);
 
-  // ações
-  $('#btnGen').onclick = generate;
-  $('#btnPrint').onclick = () => {
+  // imprimir direto do iframe
+  document.getElementById('btnPrint').onclick = () => {
     const ifr = document.getElementById('preview');
     if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
   };
-  $('#btnToggleGrid').onclick = ()=>{ state.showGrid=!state.showGrid; generate(); };
 })();
 </script>
 </body>
