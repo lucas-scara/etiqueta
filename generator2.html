@@ -2,78 +2,168 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Etiqueta / Requisição (PDF A4)</title>
+  <title>Requisição / Impressão (A4)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
+
   <style>
-    :root{--w:920px}
-    body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px}
-    .panel{
-      width:100%;max-width:var(--w);margin:8px auto 12px auto;
-      display:grid;grid-template-columns:1fr;gap:12px;
+    :root{
+      --bg:#f7f7f9;
+      --card:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --primary:#2563eb;
+      --radius:12px;
+      --shadow:0 6px 20px rgba(0,0,0,.06);
+      --w:1100px;
     }
-    .panel label{font-size:14px;color:#333}
-    .field{display:flex;flex-direction:column;gap:6px}
-    .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-    .row .spacer{flex:1}
-    select,input[type=text],textarea,input[type=date]{
-      width:100%;padding:10px;border:1px solid #dcdcdc;border-radius:8px;font-size:14px;background:#fff
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg);
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
     }
-    textarea{min-height:72px;resize:vertical}
-    .bar{
-      display:flex;gap:12px;flex-wrap:wrap;margin:8px auto 10px auto;
-      justify-content:center; align-items:center; max-width:var(--w);
+
+    /* Header */
+    .header{
+      max-width:var(--w); margin:18px auto 8px; padding:0 16px;
+      display:flex; justify-content:space-between; align-items:center;
     }
-    .btn{padding:8px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer;font-size:14px}
-    .btn:hover{background:#efefef}
-    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px;max-width:var(--w);margin:0 auto;display:block}
+    .header h1{font-size:18px;margin:0;font-weight:600}
+    .saved{font-size:12px;color:var(--muted);opacity:0;transition:opacity .25s}
+    .saved.show{opacity:1}
+
+    /* Grid principal */
+    .container{max-width:var(--w); margin:0 auto 20px; padding:0 16px}
+    .grid{
+      display:grid; gap:16px;
+      grid-template-columns:1fr; /* mobile */
+    }
+    @media(min-width: 980px){
+      .grid{grid-template-columns: 480px 1fr;}
+    }
+
+    /* Card/Form */
+    .card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:18px; display:flex; flex-direction:column; gap:14px;
+    }
+    .field{display:flex; flex-direction:column; gap:8px}
+    label{font-size:14px; color:#374151; font-weight:600}
+    select, input[type=text], textarea, input[type=date]{
+      width:100%; padding:12px 12px; border:1px solid var(--border);
+      border-radius:10px; font-size:14px; background:#fff; color:var(--text);
+      outline:none; transition:border-color .15s, box-shadow .15s;
+    }
+    select:focus, input:focus, textarea:focus{
+      border-color:var(--primary);
+      box-shadow:0 0 0 3px rgba(37,99,235,.12);
+    }
+    textarea{min-height:92px; resize:vertical}
+    .muted{font-size:12px;color:var(--muted)}
+
+    /* Segmented control */
+    .seg{
+      display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    }
+    .seg label{
+      padding:8px 12px; margin:0; font-weight:500; cursor:pointer; user-select:none;
+      color:var(--text); display:flex; gap:8px; align-items:center;
+    }
+    .seg input{display:none}
+    .seg input:checked + span{
+      background:var(--primary); color:#fff;
+    }
+    .seg span{display:inline-block; padding:6px 12px}
+
+    /* Barra de ações */
+    .actions{
+      display:flex; gap:10px; justify-content:center; align-items:center;
+      position:sticky; bottom:0; padding:10px; backdrop-filter: blur(6px);
+    }
+    .btn{
+      padding:10px 16px; border:1px solid var(--border); border-radius:10px;
+      background:#fff; cursor:pointer; font-size:14px; font-weight:600;
+      transition:transform .05s, background .15s, border-color .15s;
+    }
+    .btn:hover{background:#f3f4f6}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
+    .btn.primary:hover{background:#1d4ed8}
+
+    /* Preview */
+    .preview{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:8px;
+      position:sticky; top:12px; height:calc(100vh - 120px); /* cola no topo no desktop */
+      display:flex; flex-direction:column;
+    }
+    .preview iframe{
+      width:100%; height:100%; border:0; border-radius:8px;
+    }
+
     .hidden{display:none !important}
-    .hint{font-size:12px;color:#666}
   </style>
+
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 
-  <!-- Painel de opções -->
-  <div class="panel" id="controls">
-    <div class="field">
-      <label for="clinicaSel">Nome da clínica</label>
-      <select id="clinicaSel">
-        <option>HCB - Centro Cirúrgico</option>
-        <option>HCB - Centro de Endoscopia</option>
-      </select>
-    </div>
+  <div class="header">
+    <h1>Requisição para impressão</h1>
+    <div class="saved" id="saved">Salvo</div>
+  </div>
 
-    <div class="field">
-      <label>Data</label>
-      <div class="row">
-        <label><input type="radio" name="dataModo" id="dataHoje" checked> Hoje</label>
-        <label><input type="radio" name="dataModo" id="dataOutra"> Outra data</label>
-        <div class="spacer"></div>
-        <input type="date" id="dataOutraVal" class="hidden">
+  <div class="container">
+    <div class="grid">
+
+      <!-- Coluna Form -->
+      <div class="card" id="formCard">
+        <div class="field">
+          <label for="clinicaSel">Nome da clínica</label>
+          <select id="clinicaSel">
+            <option>HCB - Centro Cirúrgico</option>
+            <option>HCB - Centro de Endoscopia</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Data</label>
+          <div class="seg" role="tablist" aria-label="Escolha de data">
+            <label><input type="radio" name="dataModo" id="dataHoje" checked><span>Hoje</span></label>
+            <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
+          </div>
+          <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
+        </div>
+
+        <div class="field">
+          <label for="naturezaInp">Natureza do material</label>
+          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar, fragmento de mucosa, etc."></textarea>
+          <div class="muted">Descreva sucintamente o material enviado.</div>
+        </div>
+
+        <div class="field">
+          <label for="resumoInp">Resumo clínico</label>
+          <textarea id="resumoInp" placeholder="Ex.: História clínica, hipótese diagnóstica..."></textarea>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="btnPrint">Imprimir</button>
+          <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+        </div>
       </div>
-      <div class="hint">Se escolher “Outra data”, o campo aparece ao lado.</div>
-    </div>
 
-    <div class="field">
-      <label for="naturezaInp">Natureza do material</label>
-      <textarea id="naturezaInp" placeholder="Ex.: Fragmento de ..."></textarea>
-    </div>
+      <!-- Coluna Preview -->
+      <div class="preview">
+        <iframe id="preview"></iframe>
+      </div>
 
-    <div class="field">
-      <label for="resumoInp">Resumo clínico</label>
-      <textarea id="resumoInp" placeholder="Ex.: Histórico, hipótese diagnóstica, etc."></textarea>
     </div>
   </div>
-
-  <!-- Ações -->
-  <div class="bar">
-    <button class="btn" id="btnPrint">Imprimir</button>
-    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
-  </div>
-
-  <iframe id="preview"></iframe>
 
 <script>
 (function(){
@@ -88,15 +178,14 @@
   const PAGE_W = 595;
   const PAGE_H = 842;
 
-  // escala px -> pt
   const SCALE = PAGE_W / IMG_WIDTH;
 
-  const state = { blobUrl: null };
+  const state = { blobUrl: null, saveTimer:null };
 
   const $ = s => document.querySelector(s);
   const onlyDigits = s => (s||'').replace(/\D+/g,'');
 
-  // payload (dados vindos do bookmarklet)
+  // payload do bookmarklet
   function getPayload(){
     const pick = (src) => {
       const m = src.match(/[?#&]d=([^&]+)/);
@@ -110,48 +199,34 @@
     return pick(location.hash) || pick(location.search) || {};
   }
 
-  // === Datas / máscaras ===
-  function dateDigits8(s){
-    const d = onlyDigits(s);
-    return d.length >= 8 ? d.slice(0,8) : '';
-  }
+  // helpers de formatação
+  function dateDigits8(s){ const d = onlyDigits(s); return d.length>=8?d.slice(0,8):''; }
   function formatDNBoxes(s){
-    const d8 = dateDigits8(s);
-    if(!d8) return '';
+    const d8 = dateDigits8(s); if(!d8) return '';
     const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
     return `${dd}     ${mm}   ${yyyy}`;
   }
   function formatPhone(s){
-    const d = onlyDigits(s);
-    if(d.length < 10) return s;
-    const ddd = d.slice(0,2);
-    const part1 = d.length===10 ? d.slice(2,6) : d.slice(2,7);
-    const part2 = d.length===10 ? d.slice(6)   : d.slice(7);
-    return `(${ddd}) ${part1}-${part2}`;
+    const d=onlyDigits(s); if(d.length<10) return s;
+    const ddd=d.slice(0,2); const p1=d.length===10?d.slice(2,6):d.slice(2,7);
+    const p2=d.length===10?d.slice(6):d.slice(7); return `(${ddd}) ${p1}-${p2}`;
   }
   function formatCPF(s){
-    const d = onlyDigits(s);
-    if(d.length!==11) return s;
+    const d=onlyDigits(s); if(d.length!==11) return s;
     return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
   }
   function formatDateBRFromInput(ymd){
-    if(!ymd) return '';
-    const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!m) return '';
-    return `${m[3]}/${m[2]}/${m[1]}`;
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); if(!m) return ''; return `${m[3]}/${m[2]}/${m[1]}`;
   }
   function todayBR(){
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const yy = d.getFullYear();
+    const d=new Date(); const dd=String(d.getDate()).padStart(2,'0');
+    const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear();
     return `${dd}/${mm}/${yy}`;
   }
 
-  // === Campos e coordenadas (px; origem topo-esquerdo) ===
+  // campos/coords
   const FONT_SIZE = 28;
   const FIELDS_TL = {
-    // Nome da clínica (selecionável)
     clinica:     { left:300, top:275,  size:FONT_SIZE },
 
     nome:        { left:180, top:390,  size:FONT_SIZE, bold:true },
@@ -162,76 +237,70 @@
     cpf:         { left:475, top:555,  size:FONT_SIZE },
     nomeMae:     { left:275, top:602,  size:FONT_SIZE },
 
-    // Natureza do material e Resumo clínico
     natureza:    { left:275, top:660,  size:24, wrapPx: 820 },
     resumo:      { left:275, top:730,  size:24, wrapPx: 820 },
 
-    // “X” nas caixas de gênero
     sexoF:       { left:210, top:455,  size:26, bold:true },
     sexoM:       { left:264, top:454,  size:26, bold:true },
 
-    // Data da coleta (rodapé)
     dataColeta:  { left:210, top:1210, size:24 }
   };
 
-  // px -> pt
   function TL(left, top, fontSizePx){
-    const x_pt = left * SCALE;
-    const y_pt = PAGE_H - (top * SCALE) - (fontSizePx * SCALE);
-    return { x: x_pt, y: y_pt };
+    return {
+      x: left * SCALE,
+      y: PAGE_H - (top * SCALE) - (fontSizePx * SCALE)
+    };
   }
 
-  // quebra de linha simples para pdf-lib
   function wrapLines(text, font, sizePt, maxWidthPt){
     if(!text) return [''];
-    const words = String(text).split(/\s+/);
-    const lines = [];
-    let line = '';
+    const words = String(text).split(/\s+/); const out=[]; let line='';
     const width = t => font.widthOfTextAtSize(t, sizePt);
     words.forEach(w=>{
-      const test = line ? (line + ' ' + w) : w;
-      if(width(test) <= maxWidthPt) {
-        line = test;
-      } else {
-        if(line) lines.push(line);
-        line = w;
-      }
+      const test = line ? line+' '+w : w;
+      if(width(test) <= maxWidthPt){ line = test; }
+      else { if(line) out.push(line); line = w; }
     });
-    if(line) lines.push(line);
-    return lines;
+    if(line) out.push(line); return out;
   }
 
-  // elementos do painel
-  const selClinica   = document.getElementById('clinicaSel');
-  const rHoje        = document.getElementById('dataHoje');
-  const rOutra       = document.getElementById('dataOutra');
-  const inpOutraData = document.getElementById('dataOutraVal');
-  const inpNatureza  = document.getElementById('naturezaInp');
-  const inpResumo    = document.getElementById('resumoInp');
+  // UI refs
+  const selClinica   = $('#clinicaSel');
+  const rHoje        = $('#dataHoje');
+  const rOutra       = $('#dataOutra');
+  const inpOutraData = $('#dataOutraVal');
+  const inpNatureza  = $('#naturezaInp');
+  const inpResumo    = $('#resumoInp');
+  const savedBadge   = $('#saved');
 
   function syncDataInputs(){
     const show = rOutra.checked;
     inpOutraData.classList.toggle('hidden', !show);
-    if(show) setTimeout(()=>inpOutraData.focus(), 50);
+    if(show) setTimeout(()=>inpOutraData.showPicker ? inpOutraData.showPicker() : inpOutraData.focus(), 60);
   }
 
-  // preferências simples
-  const LS_KEY = 'etiqueta_prefs_v2';
+  // prefs
+  const LS_KEY='etiqueta_prefs_ui_v1';
   function savePrefs(){
     const prefs = {
       clinica: selClinica.value,
-      dataModo: rHoje.checked ? 'hoje' : 'outra',
+      dataModo: rHoje.checked?'hoje':'outra',
       outra: inpOutraData.value,
       natureza: inpNatureza.value,
       resumo: inpResumo.value
     };
     try{ localStorage.setItem(LS_KEY, JSON.stringify(prefs)); }catch(_){}
+    // micro feedback
+    savedBadge.classList.add('show');
+    clearTimeout(state.saveTimer);
+    state.saveTimer = setTimeout(()=>savedBadge.classList.remove('show'), 900);
   }
   function loadPrefs(){
     try{
-      const p = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      const p = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
       if(p.clinica) selClinica.value = p.clinica;
-      if(p.dataModo === 'outra'){ rOutra.checked = true; rHoje.checked = false; }
+      if(p.dataModo==='outra'){ rOutra.checked=true; rHoje.checked=false; }
       if(p.outra) inpOutraData.value = p.outra;
       if(p.natureza) inpNatureza.value = p.natureza;
       if(p.resumo) inpResumo.value = p.resumo;
@@ -240,7 +309,6 @@
   }
   loadPrefs();
 
-  // gerar PDF
   async function generate(){
     const dados = getPayload();
 
@@ -250,13 +318,13 @@
     // fundo
     const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer());
     const type = IMG_SRC.split('.').pop().toLowerCase();
-    const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+    const img = (type==='png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
     page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
 
     const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // valores formatados (originais + painel)
+    // valores
     const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
     const dnBoxes = formatDNBoxes(dados.nascimento||'');
     const tel = formatPhone(dados.celular||'');
@@ -267,14 +335,10 @@
     const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
 
     const clinica = selClinica.value;
-    const natureza = (inpNatureza.value || '').trim();
-    const resumo   = (inpResumo.value || '').trim();
+    const natureza = (inpNatureza.value||'').trim();
+    const resumo = (inpResumo.value||'').trim();
+    const dataColeta = rHoje.checked ? todayBR() : formatDateBRFromInput(inpOutraData.value);
 
-    const dataColeta = rHoje.checked
-      ? todayBR()
-      : formatDateBRFromInput(inpOutraData.value);
-
-    // textos normais
     const VALUES = {
       clinica,
       nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
@@ -284,37 +348,30 @@
       dataColeta
     };
 
-    // desenhar campos “simples”
+    // textos simples
     Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
-      if(key==='natureza' || key==='resumo') return; // tratamos já já
+      if(key==='natureza' || key==='resumo') return;
       const value = VALUES[key];
-      if(value==null || value==='') return;
+      if(!value) return;
       const sizePt = (cfg.size||12) * SCALE;
       const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-      page.drawText(String(value), {
-        x, y,
-        size: sizePt,
-        font: cfg.bold ? helvB : helv,
-        color: rgb(0,0,0)
-      });
+      page.drawText(String(value), { x, y, size:sizePt, font: cfg.bold?helvB:helv, color: rgb(0,0,0) });
     });
 
-    // “Natureza do material” e “Resumo clínico” com quebra de linha
-    for (const key of ['natureza','resumo']) {
+    // textos com wrap
+    for(const key of ['natureza','resumo']){
       const cfg = FIELDS_TL[key];
-      const text = (key==='natureza' ? natureza : resumo);
-      if(!text) continue;
+      const value = (key==='natureza'? natureza : resumo);
+      if(!value) continue;
       const sizePt = (cfg.size||12) * SCALE;
       const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
       const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
-      const lines = wrapLines(text, helv, sizePt, maxWidthPt);
-      const lineHeight = sizePt * 1.25;
-      lines.forEach((ln, i)=>{
-        page.drawText(ln, { x, y: y - (i*lineHeight), size:sizePt, font:helv, color: rgb(0,0,0) });
-      });
+      const lines = wrapLines(value, helv, sizePt, maxWidthPt);
+      const lh = sizePt * 1.25;
+      lines.forEach((ln,i)=> page.drawText(ln, { x, y: y-(i*lh), size:sizePt, font:helv, color:rgb(0,0,0) }));
     }
 
-    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); }
+    if(state.blobUrl) URL.revokeObjectURL(state.blobUrl);
     const bytes = await pdfDoc.save();
     const blob = new Blob([bytes], { type:'application/pdf' });
     state.blobUrl = URL.createObjectURL(blob);
@@ -324,20 +381,20 @@
     savePrefs();
   }
 
-  // eventos do painel -> regerar
-  const controls = document.getElementById('controls');
+  // eventos (regerar sempre que mudar algo)
+  const ctrl = document.getElementById('formCard');
   ['change','input'].forEach(evt=>{
-    controls.addEventListener(evt, e=>{
-      if(e.target.id === 'dataHoje' || e.target.id === 'dataOutra') syncDataInputs();
+    ctrl.addEventListener(evt, e=>{
+      if(e.target.id==='dataHoje' || e.target.id==='dataOutra'){ syncDataInputs(); }
       generate();
     });
   });
 
-  // gerar ao abrir e quando o hash mudar (novo paciente)
+  // gerar ao abrir e quando o hash mudar
   generate();
   window.addEventListener('hashchange', generate);
 
-  // imprimir direto do iframe
+  // imprimir
   document.getElementById('btnPrint').onclick = () => {
     const ifr = document.getElementById('preview');
     if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
