@@ -82,12 +82,17 @@
     .btn.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
     .btn.primary:hover{background:#1d4ed8}
 
+    /* painel de prévia */
     .preview{
       background:var(--card); border:1px solid var(--border);
       border-radius:var(--radius); box-shadow:var(--shadow);
-      padding:8px; position:sticky; top:12px;
+      padding:12px; position:sticky; top:12px;
       height:calc(100vh - 120px); min-height:520px;
       display:flex; flex-direction:column;
+    }
+    .panelTitle{
+      font-size:14px; font-weight:600; color:#374151;
+      margin:2px 2px 8px;
     }
     .preview iframe{ width:100%; height:100%; border:0; border-radius:8px; background:#111; }
 
@@ -143,6 +148,7 @@
 
       <!-- Preview (2/3) -->
       <div class="preview">
+        <div class="panelTitle">Prévia</div>
         <iframe id="preview"></iframe>
       </div>
     </div>
@@ -170,7 +176,7 @@
     debounceId: null
   };
 
-  // DOM helpers
+  // helpers
   const $ = s => document.querySelector(s);
   const onlyDigits = s => (s||'').replace(/\D+/g,'');
 
@@ -214,7 +220,6 @@
   }
 
   // coords
-  const FONT_SIZE = 28;
   const FIELDS_TL = {
     clinica:     { left:300, top:275,  size:28 },
 
@@ -234,21 +239,10 @@
     sexoM:       { left:264, top:454,  size:26, bold:true },
   };
 
-  function TL(left, top, fontSizePx){
-    return { x: left * SCALE, y: PAGE_H - (top * SCALE) - (fontSizePx * SCALE) };
-  }
-
-  function wrapLines(text, font, sizePt, maxWidthPt){
-    if(!text) return [''];
-    const words = String(text).split(/\s+/); const out=[]; let line='';
-    const width = t => font.widthOfTextAtSize(t, sizePt);
-    words.forEach(w=>{
-      const test = line ? line+' '+w : w;
-      if(width(test) <= maxWidthPt){ line = test; }
-      else { if(line) out.push(line); line = w; }
-    });
-    if(line) out.push(line); return out;
-  }
+  const TL = (left, top, sizePx) => ({
+    x: left * (PAGE_W/IMG_WIDTH),
+    y: PAGE_H - (top * (PAGE_W/IMG_WIDTH)) - (sizePx * (PAGE_W/IMG_WIDTH))
+  });
 
   // UI refs
   const selClinica   = $('#clinicaSel');
@@ -296,12 +290,12 @@
   // pré-carrega o template uma vez
   async function ensureTemplateLoaded(){
     if(!state.imgBytes){
-      const resp = await fetch(IMG_SRC, {cache:'reload'});
+      const resp = await fetch('template.jpg', {cache:'reload'});
       state.imgBytes = await resp.arrayBuffer();
     }
   }
 
-  // render do PDF (sem “Gerando…”)
+  // render do PDF
   async function generate(){
     await ensureTemplateLoaded();
 
@@ -310,9 +304,8 @@
     const pdfDoc = await PDFDocument.create();
     const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
 
-    const type = IMG_SRC.split('.').pop().toLowerCase();
-    const img = (type==='png') ? await pdfDoc.embedPng(state.imgBytes) : await pdfDoc.embedJpg(state.imgBytes);
-    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
+    const img = await pdfDoc.embedJpg(state.imgBytes);
+    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*(PAGE_W/IMG_WIDTH) });
 
     const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -344,7 +337,7 @@
     Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
       if(key==='natureza' || key==='resumo') return;
       const value = VALUES[key]; if(!value) return;
-      const sizePt = (cfg.size||12) * SCALE;
+      const sizePt = (cfg.size||12) * (PAGE_W/IMG_WIDTH);
       const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
       page.drawText(String(value), { x, y, size:sizePt, font: cfg.bold?helvB:helv, color: rgb(0,0,0) });
     });
@@ -354,9 +347,9 @@
       const cfg = FIELDS_TL[key];
       const value = (key==='natureza'? natureza : resumo);
       if(!value) continue;
-      const sizePt = (cfg.size||12) * SCALE;
+      const sizePt = (cfg.size||12) * (PAGE_W/IMG_WIDTH);
       const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-      const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
+      const maxWidthPt = (cfg.wrapPx || 800) * (PAGE_W/IMG_WIDTH);
       const lines = (function wrap(text){
         if(!text) return [''];
         const words = String(text).split(/\s+/); const out=[]; let line='';
@@ -379,6 +372,9 @@
     document.getElementById('preview').src = state.blobUrl;
     document.getElementById('btnDownload').href = state.blobUrl;
 
+    // salva preferências
+    const prefsTimer = setTimeout(()=>{},0); // dummmy to keep structure
+    clearTimeout(prefsTimer);
     savePrefs();
   }
 
