@@ -239,23 +239,23 @@
   // coords
   const FONT_SIZE = 28;
   const FIELDS_TL = {
-    clinica:     { left:300, top:275,  size:FONT_SIZE },
-
-    nome:        { left:180, top:390,  size:FONT_SIZE, bold:true },
-    dn:          { left:356, top:443,  size:FONT_SIZE },
-    telefone:    { left:702, top:443,  size:FONT_SIZE },
-    convenio:    { left:235, top:500,  size:FONT_SIZE },
-    cns:         { left:790, top:500,  size:FONT_SIZE },
-    cpf:         { left:475, top:555,  size:FONT_SIZE },
-    nomeMae:     { left:275, top:602,  size:FONT_SIZE },
-
-    natureza:    { left:275, top:660,  size:24, wrapPx: 820 },
-    resumo:      { left:275, top:730,  size:24, wrapPx: 820 },
-
+    clinica:     { left:300, top:275,  size:28 },
+  
+    nome:        { left:180, top:390,  size:28, bold:true },
+    dn:          { left:356, top:443,  size:28 },
+    telefone:    { left:702, top:443,  size:28 },
+    convenio:    { left:235, top:500,  size:28 },
+    cns:         { left:790, top:500,  size:28 },
+    cpf:         { left:475, top:555,  size:28 },
+    nomeMae:     { left:275, top:602,  size:28 },
+  
+    // ▼ Ajustes pedidos
+    natureza:    { left:285, top:700,  size:24, wrapPx: 820 }, // antes: top:660
+    resumo:      { left:285, top:770,  size:24, wrapPx: 820 }, // antes: top:730
+    dataColeta:  { left:260, top:1238, size:24 },              // antes: left:210, top:1210
+  
     sexoF:       { left:210, top:455,  size:26, bold:true },
     sexoM:       { left:264, top:454,  size:26, bold:true },
-
-    dataColeta:  { left:210, top:1210, size:24 }
   };
 
   function TL(left, top, fontSizePx){
