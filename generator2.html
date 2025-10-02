@@ -81,7 +81,6 @@
     .btn:active{transform:translateY(1px)}
     .btn.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
     .btn.primary:hover{background:#1d4ed8}
-    .btn[disabled]{ opacity:.75; cursor:not-allowed } /* carregando */
 
     .preview{
       background:var(--card); border:1px solid var(--border);
@@ -174,25 +173,6 @@
   // DOM helpers
   const $ = s => document.querySelector(s);
   const onlyDigits = s => (s||'').replace(/\D+/g,'');
-
-  // botão imprimir (mostra "Gerando…")
-  const btnPrint = document.getElementById('btnPrint');
-  function setRendering(on){
-    if(on){
-      btnPrint.dataset.label = btnPrint.textContent;
-      btnPrint.textContent = 'Gerando…';
-      btnPrint.disabled = true;
-      btnPrint.setAttribute('aria-busy','true');
-    }else{
-      btnPrint.textContent = btnPrint.dataset.label || 'Imprimir';
-      btnPrint.disabled = false;
-      btnPrint.removeAttribute('aria-busy');
-    }
-  }
-  // força um frame antes do trabalho pesado
-  const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
-  // espera utilitária
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   // payload do bookmarklet
   function getPayload(){
@@ -321,97 +301,85 @@
     }
   }
 
-  // render do PDF
+  // render do PDF (sem “Gerando…”)
   async function generate(){
-    setRendering(true);
-    await nextFrame(); // garante que “Gerando…” seja pintado
-    const start = performance.now();
+    await ensureTemplateLoaded();
 
-    try{
-      await ensureTemplateLoaded();
+    const dados = getPayload();
 
-      const dados = getPayload();
+    const pdfDoc = await PDFDocument.create();
+    const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
 
-      const pdfDoc = await PDFDocument.create();
-      const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    const type = IMG_SRC.split('.').pop().toLowerCase();
+    const img = (type==='png') ? await pdfDoc.embedPng(state.imgBytes) : await pdfDoc.embedJpg(state.imgBytes);
+    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
 
-      const type = IMG_SRC.split('.').pop().toLowerCase();
-      const img = (type==='png') ? await pdfDoc.embedPng(state.imgBytes) : await pdfDoc.embedJpg(state.imgBytes);
-      page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
+    const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-      const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
+    const dnBoxes = formatDNBoxes(dados.nascimento||'');
+    const tel = formatPhone(dados.celular||'');
+    const conv = 'SUS';
+    const cns = (dados.cns||'').trim();
+    const cpf = formatCPF(dados.cpf||'');
+    const mae = (dados.nomeMae||'').trim();
+    const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
 
-      const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-      const dnBoxes = formatDNBoxes(dados.nascimento||'');
-      const tel = formatPhone(dados.celular||'');
-      const conv = 'SUS';
-      const cns = (dados.cns||'').trim();
-      const cpf = formatCPF(dados.cpf||'');
-      const mae = (dados.nomeMae||'').trim();
-      const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
+    const clinica = selClinica.value;
+    const natureza = (inpNatureza.value||'').trim();
+    const resumo = (inpResumo.value||'').trim();
+    const dataColeta = rHoje.checked ? todayBR() : formatDateBRFromInput(inpOutraData.value);
 
-      const clinica = selClinica.value;
-      const natureza = (inpNatureza.value||'').trim();
-      const resumo = (inpResumo.value||'').trim();
-      const dataColeta = rHoje.checked ? todayBR() : formatDateBRFromInput(inpOutraData.value);
+    const VALUES = {
+      clinica,
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
+      cns, cpf, nomeMae:mae,
+      sexoF: sexoRaw.startsWith('F') ? 'X' : '',
+      sexoM: sexoRaw.startsWith('M') ? 'X' : '',
+      dataColeta
+    };
 
-      const VALUES = {
-        clinica,
-        nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
-        cns, cpf, nomeMae:mae,
-        sexoF: sexoRaw.startsWith('F') ? 'X' : '',
-        sexoM: sexoRaw.startsWith('M') ? 'X' : '',
-        dataColeta
-      };
+    // textos simples
+    Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
+      if(key==='natureza' || key==='resumo') return;
+      const value = VALUES[key]; if(!value) return;
+      const sizePt = (cfg.size||12) * SCALE;
+      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
+      page.drawText(String(value), { x, y, size:sizePt, font: cfg.bold?helvB:helv, color: rgb(0,0,0) });
+    });
 
-      // textos simples
-      Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
-        if(key==='natureza' || key==='resumo') return;
-        const value = VALUES[key]; if(!value) return;
-        const sizePt = (cfg.size||12) * SCALE;
-        const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-        page.drawText(String(value), { x, y, size:sizePt, font: cfg.bold?helvB:helv, color: rgb(0,0,0) });
-      });
-
-      // wrap (natureza/resumo)
-      for(const key of ['natureza','resumo']){
-        const cfg = FIELDS_TL[key];
-        const value = (key==='natureza'? natureza : resumo);
-        if(!value) continue;
-        const sizePt = (cfg.size||12) * SCALE;
-        const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-        const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
-        const lines = (function wrap(text){
-          if(!text) return [''];
-          const words = String(text).split(/\s+/); const out=[]; let line='';
-          const width = t => helv.widthOfTextAtSize(t, sizePt);
-          words.forEach(w=>{
-            const test = line ? line+' '+w : w;
-            if(width(test) <= maxWidthPt){ line = test; }
-            else { if(line) out.push(line); line = w; }
-          });
-          if(line) out.push(line); return out;
-        })(value);
-        const lh = sizePt * 1.25;
-        lines.forEach((ln,i)=> page.drawText(ln, { x, y: y-(i*lh), size:sizePt, font:helv, color:rgb(0,0,0) }));
-      }
-
-      if(state.blobUrl) URL.revokeObjectURL(state.blobUrl);
-      const bytes = await pdfDoc.save();
-      const blob = new Blob([bytes], { type:'application/pdf' });
-      state.blobUrl = URL.createObjectURL(blob);
-      document.getElementById('preview').src = state.blobUrl;
-      document.getElementById('btnDownload').href = state.blobUrl;
-
-      savePrefs();
-    } finally {
-      // mantém “Gerando…” visível por pelo menos 400ms
-      const elapsed = performance.now() - start;
-      const MIN_VISIBLE = 400;
-      if (elapsed < MIN_VISIBLE) await sleep(MIN_VISIBLE - elapsed);
-      setRendering(false);
+    // wrap (natureza/resumo)
+    for(const key of ['natureza','resumo']){
+      const cfg = FIELDS_TL[key];
+      const value = (key==='natureza'? natureza : resumo);
+      if(!value) continue;
+      const sizePt = (cfg.size||12) * SCALE;
+      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
+      const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
+      const lines = (function wrap(text){
+        if(!text) return [''];
+        const words = String(text).split(/\s+/); const out=[]; let line='';
+        const width = t => helv.widthOfTextAtSize(t, sizePt);
+        words.forEach(w=>{
+          const test = line ? line+' '+w : w;
+          if(width(test) <= maxWidthPt){ line = test; }
+          else { if(line) out.push(line); line = w; }
+        });
+        if(line) out.push(line); return out;
+      })(value);
+      const lh = sizePt * 1.25;
+      lines.forEach((ln,i)=> page.drawText(ln, { x, y: y-(i*lh), size:sizePt, font:helv, color:rgb(0,0,0) }));
     }
+
+    if(state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+    const bytes = await pdfDoc.save();
+    const blob = new Blob([bytes], { type:'application/pdf' });
+    state.blobUrl = URL.createObjectURL(blob);
+    document.getElementById('preview').src = state.blobUrl;
+    document.getElementById('btnDownload').href = state.blobUrl;
+
+    savePrefs();
   }
 
   // debounce
@@ -449,7 +417,7 @@
   window.addEventListener('hashchange', ()=>scheduleGenerate('instant'));
 
   // imprimir
-  btnPrint.onclick = () => {
+  document.getElementById('btnPrint').onclick = () => {
     const ifr = document.getElementById('preview');
     if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
   };
