@@ -65,14 +65,8 @@
       display:inline-block; padding:8px 14px;
       transition: background .15s, color .15s;
     }
-    /* hover discreto quando NÃO está selecionado */
-    .seg input:not(:checked) + span:hover{
-      background:#f3f4f6;
-    }
-    /* selecionado */
-    .seg input:checked + span{
-      background:var(--primary); color:#fff;
-    }
+    .seg input:not(:checked) + span:hover{ background:#f3f4f6; }
+    .seg input:checked + span{ background:var(--primary); color:#fff; }
 
     .actions{
       display:flex; gap:10px; justify-content:center; align-items:center;
@@ -87,8 +81,7 @@
     .btn:active{transform:translateY(1px)}
     .btn.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
     .btn.primary:hover{background:#1d4ed8}
-    /* estado carregando no botão */
-    .btn[disabled]{ opacity:.75; cursor:not-allowed }
+    .btn[disabled]{ opacity:.75; cursor:not-allowed } /* carregando */
 
     .preview{
       background:var(--card); border:1px solid var(--border);
@@ -196,6 +189,10 @@
       btnPrint.removeAttribute('aria-busy');
     }
   }
+  // força um frame antes do trabalho pesado
+  const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+  // espera utilitária
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   // payload do bookmarklet
   function getPayload(){
@@ -240,7 +237,7 @@
   const FONT_SIZE = 28;
   const FIELDS_TL = {
     clinica:     { left:300, top:275,  size:28 },
-  
+
     nome:        { left:180, top:390,  size:28, bold:true },
     dn:          { left:356, top:443,  size:28 },
     telefone:    { left:702, top:443,  size:28 },
@@ -248,21 +245,17 @@
     cns:         { left:790, top:500,  size:28 },
     cpf:         { left:475, top:555,  size:28 },
     nomeMae:     { left:275, top:602,  size:28 },
-  
-    // ▼ Ajustes pedidos
-    natureza:    { left:285, top:700,  size:24, wrapPx: 820 }, // antes: top:660
-    resumo:      { left:285, top:770,  size:24, wrapPx: 820 }, // antes: top:730
-    dataColeta:  { left:260, top:1238, size:24 },              // antes: left:210, top:1210
-  
+
+    natureza:    { left:285, top:700,  size:24, wrapPx: 820 },
+    resumo:      { left:285, top:770,  size:24, wrapPx: 820 },
+    dataColeta:  { left:260, top:1238, size:24 },
+
     sexoF:       { left:210, top:455,  size:26, bold:true },
     sexoM:       { left:264, top:454,  size:26, bold:true },
   };
 
   function TL(left, top, fontSizePx){
-    return {
-      x: left * SCALE,
-      y: PAGE_H - (top * SCALE) - (fontSizePx * SCALE)
-    };
+    return { x: left * SCALE, y: PAGE_H - (top * SCALE) - (fontSizePx * SCALE) };
   }
 
   function wrapLines(text, font, sizePt, maxWidthPt){
@@ -331,6 +324,9 @@
   // render do PDF
   async function generate(){
     setRendering(true);
+    await nextFrame(); // garante que “Gerando…” seja pintado
+    const start = performance.now();
+
     try{
       await ensureTemplateLoaded();
 
@@ -386,7 +382,7 @@
         const sizePt = (cfg.size||12) * SCALE;
         const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
         const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
-        const lines = (function wrap(text){ 
+        const lines = (function wrap(text){
           if(!text) return [''];
           const words = String(text).split(/\s+/); const out=[]; let line='';
           const width = t => helv.widthOfTextAtSize(t, sizePt);
@@ -410,6 +406,10 @@
 
       savePrefs();
     } finally {
+      // mantém “Gerando…” visível por pelo menos 400ms
+      const elapsed = performance.now() - start;
+      const MIN_VISIBLE = 400;
+      if (elapsed < MIN_VISIBLE) await sleep(MIN_VISIBLE - elapsed);
       setRendering(false);
     }
   }
