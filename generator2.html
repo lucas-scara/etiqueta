@@ -72,6 +72,11 @@
     @media (max-width:560px){ .fr-group{flex-wrap:wrap} }
 
     .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+
+    /* Input de data IN-LINE (não quebra layout) */
+    .date-input{ width:190px; flex:0 0 auto; transition:opacity .15s, transform .15s; }
+    .hidden-inline{ visibility:hidden; opacity:0; pointer-events:none; }
+
     .hidden{display:none!important}
   </style>
 
@@ -101,7 +106,8 @@
               <label><input type="radio" name="dataModo" id="dataHoje" checked><span>Hoje</span></label>
               <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
             </div>
-            <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
+            <!-- agora permanece na mesma linha e sem “pular” ao aparecer -->
+            <input type="date" id="dataOutraVal" class="date-input hidden-inline" aria-label="Escolha a data">
           </div>
         </div>
 
@@ -162,10 +168,7 @@
 (function(){
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-  // --- imagem base (px) ---
   const IMG_SRC='template.jpg', IMG_WIDTH=1240, IMG_HEIGHT=1755;
-
-  // --- PDF A4 (pt) ---
   const PAGE_W=595, PAGE_H=842, SCALE=PAGE_W/IMG_WIDTH;
 
   const state={blobUrl:null,saveTimer:null,imgBytes:null,debounceId:null};
@@ -173,7 +176,6 @@
   const $=s=>document.querySelector(s);
   const onlyDigits=s=>(s||'').replace(/\D+/g,'');
 
-  // payload do bookmarklet
   function getPayload(){
     const pick=(src)=>{
       const m=src.match(/[?#&]d=([^&]+)/);
@@ -187,7 +189,6 @@
     return pick(location.hash)||pick(location.search)||{};
   }
 
-  // formatadores
   const dateDigits8=s=>{const d=onlyDigits(s);return d.length>=8?d.slice(0,8):'';}
   function formatDNBoxes(s){
     const d8=dateDigits8(s); if(!d8) return '';
@@ -206,10 +207,8 @@
   const formatDateBRFromInput=(ymd)=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:''; };
   const todayBR=()=>{ const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear(); return `${dd}/${mm}/${yy}`; };
 
-  // coordenadas (px na imagem)
   const FIELDS_TL={
     clinica:{ left:285, top:275, size:28 },
-
     nome:{ left:180, top:390, size:28, bold:true },
     dn:{ left:356, top:443, size:28 },
     telefone:{ left:702, top:443, size:28 },
@@ -217,28 +216,22 @@
     cns:{ left:790, top:500, size:28 },
     cpf:{ left:475, top:555, size:28 },
     nomeMae:{ left:275, top:602, size:28 },
-
-    /* frascos: X nos parênteses; número só quando "Outros" */
     fr1:{ left:885, top:566, size:20, bold:true },
     fr2:{ left:938, top:566, size:20, bold:true },
     fr3:{ left:993, top:566, size:20, bold:true },
     fr4:{ left:1047, top:566, size:20, bold:true },
     frOutros:{ left:1132, top:566, size:20, bold:true },
     frNumero:{ left:1085, top:555, size:24 },
-
     medicoReq:{ left:318, top:658, size:24 },
     natureza:{ left:358, top:708, size:24, wrapPx:820 },
     resumo:{ left:295, top:815, size:24, wrapPx:820 },
     diag:{ left:303, top:975, size:24, wrapPx:820 },
     dataColeta:{ left:240, top:1130, size:24 },
-
     sexoF:{ left:210, top:455, size:26, bold:true },
     sexoM:{ left:264, top:454, size:26, bold:true },
   };
+  const TL=(l,t,s)=>({ x:l*(PAGE_W/IMG_WIDTH), y: PAGE_H - (t*(PAGE_W/IMG_WIDTH)) - (s*(PAGE_W/IMG_WIDTH)) });
 
-  const TL=(l,t,s)=>({ x:l*SCALE, y: PAGE_H - (t*SCALE) - (s*SCALE) });
-
-  // refs UI
   const selClinica=$('#clinicaSel'), rHoje=$('#dataHoje'), rOutra=$('#dataOutra'), inpOutraData=$('#dataOutraVal');
   const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
   const savedBadge=$('#saved');
@@ -246,7 +239,9 @@
   const frVal=$('#frVal'), frOutros=$('#frOutros');
 
   function syncDataInputs(){
-    const show=rOutra.checked; inpOutraData.classList.toggle('hidden',!show);
+    const show=rOutra.checked;
+    // mantém o input na mesma linha (reserva espaço mesmo oculto)
+    inpOutraData.classList.toggle('hidden-inline', !show);
     if(show) setTimeout(()=>inpOutraData.showPicker?inpOutraData.showPicker():inpOutraData.focus(),60);
   }
   function syncFrascosInput(){
@@ -255,10 +250,9 @@
     if(isOutros && !frVal.value) frVal.value='1';
   }
 
-  // prefs
   const LS_KEY='etiqueta_prefs_ui_v4';
   function savePrefs(){
-    const checked = frRadios.find(r=>r.checked);
+    const checked=frRadios.find(r=>r.checked);
     const prefs={
       clinica: selClinica.value,
       dataModo: rHoje.checked?'hoje':'outra',
@@ -290,7 +284,6 @@
     syncDataInputs(); syncFrascosInput();
   })();
 
-  // cache template
   async function ensureTemplateLoaded(){
     if(!state.imgBytes){
       const resp=await fetch(IMG_SRC,{cache:'reload'});
@@ -298,7 +291,6 @@
     }
   }
 
-  // render
   async function generate(){
     await ensureTemplateLoaded();
 
@@ -308,12 +300,11 @@
     const page=pdfDoc.addPage([PAGE_W,PAGE_H]);
 
     const img=await pdfDoc.embedJpg(state.imgBytes);
-    page.drawImage(img,{x:0,y:0,width:PAGE_W,height:IMG_HEIGHT*SCALE});
+    page.drawImage(img,{x:0,y:0,width:PAGE_W,height:IMG_HEIGHT*(PAGE_W/IMG_WIDTH)});
 
     const helv=await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helvB=await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // dados base
     const nomeCompleto=[dados.nome||'',dados.sobrenome||''].join(' ').trim();
     const dnBoxes=formatDNBoxes(dados.nascimento||'');
     const tel=formatPhone(dados.celular||'');
@@ -323,11 +314,9 @@
     const mae=(dados.nomeMae||'').trim();
     const sexoRaw=(dados.sexo||'').toString().trim().toUpperCase();
 
-    // frascos (UI)
     const sel = frRadios.find(r=>r.checked)?.value || '';
     const frCount = sel==='outros' ? parseInt(frVal.value||'0',10) : (sel?parseInt(sel,10):0);
 
-    // dados UI
     const clinica=selClinica.value;
     const medicoReq=(($('#medicoInp').value)||'').trim();
     const natureza=(inpNatureza.value||'').trim();
@@ -343,35 +332,31 @@
       medicoReq, dataColeta
     };
 
-    // textos simples
     for(const [key,cfg] of Object.entries(FIELDS_TL)){
       if(['natureza','resumo','diag','fr1','fr2','fr3','fr4','frOutros','frNumero'].includes(key)) continue;
       const value=VALUES[key]; if(!value) continue;
-      const sizePt=(cfg.size||12)*SCALE;
+      const sizePt=(cfg.size||12)*(PAGE_W/IMG_WIDTH);
       const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
       page.drawText(String(value),{x,y,size:sizePt,font:cfg.bold?helvB:helv,color:rgb(0,0,0)});
     }
 
-    // frascos:
-    if(sel){ // sempre marca um X em algum parêntese
+    if(sel){
       const markKey = sel==='outros' ? 'frOutros' : ('fr'+sel);
       const mCfg=FIELDS_TL[markKey]; if(mCfg){
-        const mSize=(mCfg.size||12)*SCALE, mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
+        const mSize=(mCfg.size||12)*(PAGE_W/IMG_WIDTH), mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
         page.drawText('X',{x:mPos.x,y:mPos.y,size:mSize,font:helvB,color:rgb(0,0,0)});
       }
-      // número no sublinhado: SOMENTE quando "outros" e valor > 0
       if(sel==='outros' && frCount>0){
-        const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*SCALE, nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
+        const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*(PAGE_W/IMG_WIDTH), nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
         page.drawText(String(frCount),{x:nPos.x,y:nPos.y,size:nSize,font:helv,color:rgb(0,0,0)});
       }
     }
 
-    // wrap para campos longos
     function drawWrapped(text,cfg){
       if(!text) return;
-      const sizePt=(cfg.size||12)*SCALE;
+      const sizePt=(cfg.size||12)*(PAGE_W/IMG_WIDTH);
       const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
-      const maxWidthPt=(cfg.wrapPx||800)*SCALE;
+      const maxWidthPt=(cfg.wrapPx||800)*(PAGE_W/IMG_WIDTH);
       const words=String(text).split(/\s+/);
       const width=t=>helv.widthOfTextAtSize(t,sizePt);
       const lines=[]; let line='';
@@ -392,18 +377,15 @@
     $('#preview').src=state.blobUrl;
     $('#btnDownload').href=state.blobUrl;
 
-    // salvo (texto minimalista)
     savePrefs();
   }
 
-  // debounce
   const DEBOUNCE_MS=700;
   function scheduleGenerate(kind){
     if(kind==='typing'){ clearTimeout(state.debounceId); state.debounceId=setTimeout(generate,DEBOUNCE_MS); return; }
     clearTimeout(state.debounceId); generate();
   }
 
-  // eventos
   const form=$('#formCard');
   form.addEventListener('input',e=>{
     const id=e.target.id;
@@ -421,11 +403,9 @@
     }
   });
 
-  // inicial
   generate();
   window.addEventListener('hashchange',()=>scheduleGenerate('instant'));
 
-  // imprimir
   $('#btnPrint').onclick=()=>{ const ifr=$('#preview'); if(ifr&&ifr.contentWindow){ ifr.contentWindow.focus(); ifr.contentWindow.print(); } };
 })();
 </script>
