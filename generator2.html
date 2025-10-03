@@ -47,6 +47,20 @@
     .seg input:not(:checked)+span:hover{background:#f3f4f6}
     .seg input:checked+span{background:var(--primary);color:#fff}
 
+    /* ★ Linha de data: ficar tudo na mesma linha */
+    .date-inline{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
+    /* ★ Campo de data compacto e sem esticar a linha */
+    #dataOutraVal{
+      width:180px;            /* largura fixa e pequena */
+      min-width:180px;        /* impede encolher demais */
+      flex:0 0 180px;         /* não cresce nem encolhe */
+    }
+    /* Em telas bem estreitas, permitimos quebrar */
+    @media (max-width:560px){
+      .date-inline{flex-wrap:wrap}
+      #dataOutraVal{flex:1 1 180px;width:100%}
+    }
+
     /* ações */
     .actions{display:flex;gap:10px;justify-content:center;align-items:center;position:sticky;bottom:0;padding:10px}
     .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;
@@ -66,17 +80,12 @@
     .preview iframe{width:100%;height:100%;border:0;border-radius:8px;background:#111}
 
     /* Nº de frascos inline */
-    .fr-group{display:flex;height:38px;gap:14px;align-items:center;flex-wrap:nowrap}
+    .fr-group{display:flex;gap:14px;align-items:center;flex-wrap:nowrap}
     .fr-group .radio{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
     .fr-group input[type=number]{width:80px;margin-left:4px}
     @media (max-width:560px){ .fr-group{flex-wrap:wrap} }
 
     .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-
-    /* Input de data IN-LINE (não quebra layout) */
-    .date-input{ width:190px; flex:0 0 auto; transition:opacity .15s, transform .15s; }
-    .hidden-inline{ visibility:hidden; opacity:0; pointer-events:none; }
-
     .hidden{display:none!important}
   </style>
 
@@ -101,13 +110,13 @@
 
         <div class="field">
           <label>Data</label>
-          <div class="inline">
+          <!-- ★ Linha compacta: seletor + input de data lado a lado -->
+          <div class="date-inline">
             <div class="seg" role="tablist" aria-label="Escolha de data">
               <label><input type="radio" name="dataModo" id="dataHoje" checked><span>Hoje</span></label>
               <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
             </div>
-            <!-- agora permanece na mesma linha e sem “pular” ao aparecer -->
-            <input type="date" id="dataOutraVal" class="date-input hidden-inline" aria-label="Escolha a data">
+            <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
           </div>
         </div>
 
@@ -177,35 +186,18 @@
   const onlyDigits=s=>(s||'').replace(/\D+/g,'');
 
   function getPayload(){
-    const pick=(src)=>{
-      const m=src.match(/[?#&]d=([^&]+)/);
-      if(!m) return null;
-      try{
-        const b64=decodeURIComponent(m[1]);
-        const json=decodeURIComponent(escape(atob(b64)));
-        return JSON.parse(json);
-      }catch(e){ return null; }
-    };
+    const pick=(src)=>{ const m=src.match(/[?#&]d=([^&]+)/); if(!m) return null;
+      try{ const b64=decodeURIComponent(m[1]); const json=decodeURIComponent(escape(atob(b64))); return JSON.parse(json); }
+      catch(_){ return null; } };
     return pick(location.hash)||pick(location.search)||{};
   }
 
   const dateDigits8=s=>{const d=onlyDigits(s);return d.length>=8?d.slice(0,8):'';}
-  function formatDNBoxes(s){
-    const d8=dateDigits8(s); if(!d8) return '';
-    const dd=d8.slice(0,2), mm=d8.slice(2,4), yyyy=d8.slice(4,8);
-    return `${dd}     ${mm}   ${yyyy}`;
-  }
-  function formatPhone(s){
-    const d=onlyDigits(s); if(d.length<10) return s;
-    const ddd=d.slice(0,2), p1=d.length===10?d.slice(2,6):d.slice(2,7), p2=d.length===10?d.slice(6):d.slice(7);
-    return `(${ddd}) ${p1}-${p2}`;
-  }
-  function formatCPF(s){
-    const d=onlyDigits(s); if(d.length!==11) return s;
-    return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
-  }
-  const formatDateBRFromInput=(ymd)=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:''; };
-  const todayBR=()=>{ const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear(); return `${dd}/${mm}/${yy}`; };
+  function formatDNBoxes(s){ const d8=dateDigits8(s); if(!d8) return ''; const dd=d8.slice(0,2),mm=d8.slice(2,4),yyyy=d8.slice(4,8); return `${dd}     ${mm}   ${yyyy}`; }
+  function formatPhone(s){ const d=onlyDigits(s); if(d.length<10) return s; const ddd=d.slice(0,2),p1=d.length===10?d.slice(2,6):d.slice(2,7),p2=d.length===10?d.slice(6):d.slice(7); return `(${ddd}) ${p1}-${p2}`; }
+  function formatCPF(s){ const d=onlyDigits(s); if(d.length!==11) return s; return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11); }
+  const formatDateBRFromInput=ymd=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:''; };
+  const todayBR=()=>{ const d=new Date(); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; };
 
   const FIELDS_TL={
     clinica:{ left:285, top:275, size:28 },
@@ -216,21 +208,25 @@
     cns:{ left:790, top:500, size:28 },
     cpf:{ left:475, top:555, size:28 },
     nomeMae:{ left:275, top:602, size:28 },
+
     fr1:{ left:885, top:566, size:20, bold:true },
     fr2:{ left:938, top:566, size:20, bold:true },
     fr3:{ left:993, top:566, size:20, bold:true },
     fr4:{ left:1047, top:566, size:20, bold:true },
     frOutros:{ left:1132, top:566, size:20, bold:true },
     frNumero:{ left:1085, top:555, size:24 },
+
     medicoReq:{ left:318, top:658, size:24 },
     natureza:{ left:358, top:708, size:24, wrapPx:820 },
     resumo:{ left:295, top:815, size:24, wrapPx:820 },
     diag:{ left:303, top:975, size:24, wrapPx:820 },
     dataColeta:{ left:240, top:1130, size:24 },
+
     sexoF:{ left:210, top:455, size:26, bold:true },
     sexoM:{ left:264, top:454, size:26, bold:true },
   };
-  const TL=(l,t,s)=>({ x:l*(PAGE_W/IMG_WIDTH), y: PAGE_H - (t*(PAGE_W/IMG_WIDTH)) - (s*(PAGE_W/IMG_WIDTH)) });
+
+  const TL=(l,t,s)=>({ x:l*SCALE, y: PAGE_H - (t*SCALE) - (s*SCALE) });
 
   const selClinica=$('#clinicaSel'), rHoje=$('#dataHoje'), rOutra=$('#dataOutra'), inpOutraData=$('#dataOutraVal');
   const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
@@ -239,9 +235,7 @@
   const frVal=$('#frVal'), frOutros=$('#frOutros');
 
   function syncDataInputs(){
-    const show=rOutra.checked;
-    // mantém o input na mesma linha (reserva espaço mesmo oculto)
-    inpOutraData.classList.toggle('hidden-inline', !show);
+    const show=rOutra.checked; inpOutraData.classList.toggle('hidden',!show);
     if(show) setTimeout(()=>inpOutraData.showPicker?inpOutraData.showPicker():inpOutraData.focus(),60);
   }
   function syncFrascosInput(){
@@ -252,7 +246,7 @@
 
   const LS_KEY='etiqueta_prefs_ui_v4';
   function savePrefs(){
-    const checked=frRadios.find(r=>r.checked);
+    const checked = frRadios.find(r=>r.checked);
     const prefs={
       clinica: selClinica.value,
       dataModo: rHoje.checked?'hoje':'outra',
@@ -300,7 +294,7 @@
     const page=pdfDoc.addPage([PAGE_W,PAGE_H]);
 
     const img=await pdfDoc.embedJpg(state.imgBytes);
-    page.drawImage(img,{x:0,y:0,width:PAGE_W,height:IMG_HEIGHT*(PAGE_W/IMG_WIDTH)});
+    page.drawImage(img,{x:0,y:0,width:PAGE_W,height:IMG_HEIGHT*SCALE});
 
     const helv=await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helvB=await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -335,7 +329,7 @@
     for(const [key,cfg] of Object.entries(FIELDS_TL)){
       if(['natureza','resumo','diag','fr1','fr2','fr3','fr4','frOutros','frNumero'].includes(key)) continue;
       const value=VALUES[key]; if(!value) continue;
-      const sizePt=(cfg.size||12)*(PAGE_W/IMG_WIDTH);
+      const sizePt=(cfg.size||12)*SCALE;
       const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
       page.drawText(String(value),{x,y,size:sizePt,font:cfg.bold?helvB:helv,color:rgb(0,0,0)});
     }
@@ -343,20 +337,20 @@
     if(sel){
       const markKey = sel==='outros' ? 'frOutros' : ('fr'+sel);
       const mCfg=FIELDS_TL[markKey]; if(mCfg){
-        const mSize=(mCfg.size||12)*(PAGE_W/IMG_WIDTH), mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
+        const mSize=(mCfg.size||12)*SCALE, mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
         page.drawText('X',{x:mPos.x,y:mPos.y,size:mSize,font:helvB,color:rgb(0,0,0)});
       }
       if(sel==='outros' && frCount>0){
-        const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*(PAGE_W/IMG_WIDTH), nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
+        const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*SCALE, nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
         page.drawText(String(frCount),{x:nPos.x,y:nPos.y,size:nSize,font:helv,color:rgb(0,0,0)});
       }
     }
 
     function drawWrapped(text,cfg){
       if(!text) return;
-      const sizePt=(cfg.size||12)*(PAGE_W/IMG_WIDTH);
+      const sizePt=(cfg.size||12)*SCALE;
       const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
-      const maxWidthPt=(cfg.wrapPx||800)*(PAGE_W/IMG_WIDTH);
+      const maxWidthPt=(cfg.wrapPx||800)*SCALE;
       const words=String(text).split(/\s+/);
       const width=t=>helv.widthOfTextAtSize(t,sizePt);
       const lines=[]; let line='';
