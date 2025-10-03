@@ -9,105 +9,70 @@
 
   <style>
     :root{
-      --bg:#f7f7f9;
-      --card:#ffffff;
-      --text:#1f2937;
-      --muted:#6b7280;
-      --border:#e5e7eb;
-      --primary:#2563eb;
-      --radius:12px;
-      --shadow:0 6px 20px rgba(0,0,0,.06);
-      --w:1280px;
+      --bg:#f7f7f9; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+      --border:#e5e7eb; --primary:#2563eb; --radius:12px;
+      --shadow:0 6px 20px rgba(0,0,0,.06); --w:1280px;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0; background:var(--bg);
-      font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color:var(--text);
-    }
-    .header{
-      max-width:var(--w); margin:18px auto 8px; padding:0 16px;
-      display:flex; justify-content:space-between; align-items:center;
-    }
+    body{margin:0;background:var(--bg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text)}
+    .header{max-width:var(--w);margin:18px auto 8px;padding:0 16px;
+      display:flex;justify-content:space-between;align-items:center}
     .header h1{font-size:18px;margin:0;font-weight:600}
 
-    .container{max-width:var(--w); margin:0 auto 20px; padding:0 16px}
-    .grid{ display:grid; gap:16px; grid-template-columns:1fr; }
-    @media(min-width: 980px){ .grid{grid-template-columns: 1fr 2fr;} }
+    .container{max-width:var(--w);margin:0 auto 20px;padding:0 16px}
+    .grid{display:grid;gap:16px;grid-template-columns:1fr;}
+    @media(min-width:980px){.grid{grid-template-columns:1fr 2fr}}
 
-    .card{
-      background:var(--card); border:1px solid var(--border);
-      border-radius:var(--radius); box-shadow:var(--shadow);
-      padding:18px; display:flex; flex-direction:column; gap:14px;
-      min-height:320px;
-    }
-    .field{display:flex; flex-direction:column; gap:8px}
-    label{font-size:14px; color:#374151; font-weight:600}
-    select, input[type=text], textarea, input[type=date]{
-      width:100%; padding:12px 12px; border:1px solid var(--border);
-      border-radius:10px; font-size:14px; background:#fff; color:var(--text);
-      outline:none; transition:border-color .15s, box-shadow .15s;
-    }
-    select:focus, input:focus, textarea:focus{
-      border-color:var(--primary);
-      box-shadow:0 0 0 3px rgba(37,99,235,.12);
-    }
-    textarea{min-height:92px; resize:vertical}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    label{font-size:13px;color:#374151;font-weight:600}
+    select,input[type=text],textarea,input[type=date]{
+      width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+      font-size:14px;background:#fff;color:var(--text);outline:none;
+      transition:border-color .15s, box-shadow .15s}
+    select:focus,input:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    textarea{min-height:72px;resize:vertical}
     .muted{font-size:12px;color:var(--muted)}
+    .hint{font-size:12px;color:var(--muted)}
 
-    /* segmented control */
-    .seg{ display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
-    .seg label{ margin:0; font-weight:500; cursor:pointer; user-select:none; }
+    /* segmented control (Hoje / Outra data) */
+    .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .seg label{margin:0;font-weight:500;cursor:pointer;user-select:none}
     .seg input{display:none}
-    .seg span{
-      display:inline-block; padding:8px 14px;
-      transition: background .15s, color .15s;
-    }
-    .seg input:not(:checked) + span:hover{ background:#f3f4f6; }
-    .seg input:checked + span{ background:var(--primary); color:#fff; }
+    .seg span{display:inline-block;padding:8px 14px;transition:background .15s,color .15s}
+    .seg input:not(:checked)+span:hover{background:#f3f4f6}
+    .seg input:checked+span{background:var(--primary);color:#fff}
 
-    .actions{
-      display:flex; gap:10px; justify-content:center; align-items:center;
-      position:sticky; bottom:0; padding:10px; backdrop-filter: blur(6px);
-    }
-    .btn{
-      padding:10px 16px; border:1px solid var(--border); border-radius:10px;
-      background:#fff; cursor:pointer; font-size:14px; font-weight:600;
-      transition:transform .05s, background .15s, border-color .15s;
-    }
+    /* ações */
+    .actions{display:flex;gap:10px;justify-content:center;align-items:center;position:sticky;bottom:0;padding:10px}
+    .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;
+      font-size:14px;font-weight:600;transition:transform .05s,background .15s,border-color .15s}
     .btn:hover{background:#f3f4f6}
     .btn:active{transform:translateY(1px)}
-    .btn.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
+    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
     .btn.primary:hover{background:#1d4ed8}
 
     /* painel de prévia */
-    .preview{
-      background:var(--card); border:1px solid var(--border);
-      border-radius:var(--radius); box-shadow:var(--shadow);
-      padding:12px; position:sticky; top:12px;
-      height:calc(100vh - 120px); min-height:520px;
-      display:flex; flex-direction:column;
-    }
-    .panelTitle{
-      display:flex; align-items:center; justify-content:space-between;
-      font-size:14px; font-weight:600; color:#374151;
-      margin:2px 2px 8px;
-    }
-    .saved{
-      font-size:12px; color:var(--muted);
-      opacity:0; transition:opacity .25s;
-    }
-    .saved.show{ opacity:1; }
+    .preview{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:12px;position:sticky;top:12px;height:calc(100vh - 120px);min-height:520px;
+      display:flex;flex-direction:column}
+    .panelTitle{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;color:#374151;margin:2px 2px 8px}
+    .saved{font-size:12px;color:var(--muted);opacity:0;transition:opacity .25s}
+    .saved.show{opacity:1}
+    .preview iframe{width:100%;height:100%;border:0;border-radius:8px;background:#111}
 
-    .preview iframe{ width:100%; height:100%; border:0; border-radius:8px; background:#111; }
-
-    .hidden{display:none !important}
+    .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .inline input[type=number]{width:90px}
+    .hidden{display:none!important}
   </style>
 
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
-
   <div class="header">
     <h1>Requisição para impressão</h1>
   </div>
@@ -126,22 +91,36 @@
 
         <div class="field">
           <label>Data</label>
-          <div class="seg" role="tablist" aria-label="Escolha de data">
-            <label><input type="radio" name="dataModo" id="dataHoje" checked><span>Hoje</span></label>
-            <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
+          <div class="inline">
+            <div class="seg" role="tablist" aria-label="Escolha de data">
+              <label><input type="radio" name="dataModo" id="dataHoje" checked><span>Hoje</span></label>
+              <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
+            </div>
+            <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
           </div>
-          <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
         </div>
 
         <div class="field">
-          <label for="naturezaInp">Natureza do material</label>
-          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar, fragmento de mucosa, etc."></textarea>
-          <div class="muted">Descreva sucintamente o material enviado.</div>
+          <label for="medicoInp">Médico requisitante</label>
+          <input id="medicoInp" type="text" placeholder="Dr(a). Nome Sobrenome — CRM/UF 123456" />
+        </div>
+
+        <div class="field">
+          <div class="row" style="justify-content:space-between">
+            <label for="naturezaInp">Natureza do material</label>
+            <span class="hint">descreva sucintamente</span>
+          </div>
+          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar; fragmento de mucosa; etc."></textarea>
         </div>
 
         <div class="field">
           <label for="resumoInp">Resumo clínico</label>
           <textarea id="resumoInp" placeholder="Ex.: História clínica, hipótese diagnóstica..."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="diagInp">Diagnóstico clínico</label>
+          <textarea id="diagInp" placeholder="Ex.: hipótese diagnóstica, achados prévios, etc."></textarea>
         </div>
 
         <div class="actions">
@@ -166,239 +145,234 @@
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
   // --- imagem base (px) ---
-  const IMG_SRC    = 'template.jpg';
-  const IMG_WIDTH  = 1240;
-  const IMG_HEIGHT = 1755;
+  const IMG_SRC='template.jpg', IMG_WIDTH=1240, IMG_HEIGHT=1755;
 
   // --- PDF A4 (pt) ---
-  const PAGE_W = 595;
-  const PAGE_H = 842;
-  const SCALE = PAGE_W / IMG_WIDTH;
+  const PAGE_W=595, PAGE_H=842, SCALE=PAGE_W/IMG_WIDTH;
 
-  const state = { blobUrl:null, saveTimer:null, imgBytes:null, debounceId:null };
+  const state={blobUrl:null,saveTimer:null,imgBytes:null,debounceId:null};
 
-  const $ = s => document.querySelector(s);
-  const onlyDigits = s => (s||'').replace(/\D+/g,'');
+  const $=s=>document.querySelector(s);
+  const onlyDigits=s=>(s||'').replace(/\D+/g,'');
 
+  // payload do bookmarklet
   function getPayload(){
-    const pick = (src) => {
-      const m = src.match(/[?#&]d=([^&]+)/);
+    const pick=(src)=>{
+      const m=src.match(/[?#&]d=([^&]+)/);
       if(!m) return null;
       try{
-        const b64 = decodeURIComponent(m[1]);
-        const json = decodeURIComponent(escape(atob(b64)));
+        const b64=decodeURIComponent(m[1]);
+        const json=decodeURIComponent(escape(atob(b64)));
         return JSON.parse(json);
-      }catch(e){ return null; }
+      }catch(e){return null;}
     };
-    return pick(location.hash) || pick(location.search) || {};
+    return pick(location.hash)||pick(location.search)||{};
   }
 
-  function dateDigits8(s){ const d = onlyDigits(s); return d.length>=8?d.slice(0,8):''; }
+  // formatadores
+  const dateDigits8=s=>{const d=onlyDigits(s);return d.length>=8?d.slice(0,8):'';}
   function formatDNBoxes(s){
-    const d8 = dateDigits8(s); if(!d8) return '';
-    const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
+    const d8=dateDigits8(s); if(!d8) return '';
+    const dd=d8.slice(0,2), mm=d8.slice(2,4), yyyy=d8.slice(4,8);
     return `${dd}     ${mm}   ${yyyy}`;
   }
   function formatPhone(s){
     const d=onlyDigits(s); if(d.length<10) return s;
-    const ddd=d.slice(0,2); const p1=d.length===10?d.slice(2,6):d.slice(2,7);
-    const p2=d.length===10?d.slice(6):d.slice(7); return `(${ddd}) ${p1}-${p2}`;
+    const ddd=d.slice(0,2), p1=d.length===10?d.slice(2,6):d.slice(2,7), p2=d.length===10?d.slice(6):d.slice(7);
+    return `(${ddd}) ${p1}-${p2}`;
   }
   function formatCPF(s){
     const d=onlyDigits(s); if(d.length!==11) return s;
     return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
   }
-  function formatDateBRFromInput(ymd){
-    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); if(!m) return ''; return `${m[3]}/${m[2]}/${m[1]}`;
-  }
-  function todayBR(){
-    const d=new Date(); const dd=String(d.getDate()).padStart(2,'0');
-    const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear();
+  const formatDateBRFromInput = (ymd) => {
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:'';
+  };
+  const todayBR=()=>{
+    const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear();
     return `${dd}/${mm}/${yy}`;
-  }
-
-  const FIELDS_TL = {
-    clinica:     { left:285, top:275,  size:28 },
-    nome:        { left:180, top:390,  size:28, bold:true },
-    dn:          { left:356, top:443,  size:28 },
-    telefone:    { left:702, top:443,  size:28 },
-    convenio:    { left:235, top:500,  size:28 },
-    cns:         { left:790, top:500,  size:28 },
-    cpf:         { left:475, top:555,  size:28 },
-    nomeMae:     { left:275, top:602,  size:28 },
-    natureza:    { left:358, top:708,  size:24, wrapPx: 820 },
-    resumo:      { left:295, top:815,  size:24, wrapPx: 820 },
-    dataColeta:  { left:240, top:1130, size:24 },
-    sexoF:       { left:210, top:455,  size:26, bold:true },
-    sexoM:       { left:264, top:454,  size:26, bold:true },
   };
 
-  const TL = (left, top, sizePx) => ({
-    x: left * SCALE,
-    y: PAGE_H - (top * SCALE) - (sizePx * SCALE)
-  });
+  // coordenadas (px na imagem)
+  const FIELDS_TL={
+    clinica:{ left:285, top:275, size:28 },
 
-  const selClinica   = $('#clinicaSel');
-  const rHoje        = $('#dataHoje');
-  const rOutra       = $('#dataOutra');
-  const inpOutraData = $('#dataOutraVal');
-  const inpNatureza  = $('#naturezaInp');
-  const inpResumo    = $('#resumoInp');
-  const savedBadge   = $('#saved');
+    nome:{ left:180, top:390, size:28, bold:true },
+    dn:{ left:356, top:443, size:28 },
+    telefone:{ left:702, top:443, size:28 },
+    convenio:{ left:235, top:500, size:28 },
+    cns:{ left:790, top:500, size:28 },
+    cpf:{ left:475, top:555, size:28 },
+    nomeMae:{ left:275, top:602, size:28 },
+
+    // novos
+    medicoReq:{ left:285, top:668, size:24 },                // linha “Médico Requisitante”
+    natureza:{ left:358, top:708, size:24, wrapPx:820 },     // NATUREZA DO MATERIAL
+    resumo:{ left:295, top:815, size:24, wrapPx:820 },       // RESUMO CLÍNICO
+    diag:{ left:295, top:980, size:24, wrapPx:820 },         // DIAGNÓSTICO CLÍNICO
+    dataColeta:{ left:240, top:1130, size:24 },
+
+    sexoF:{ left:210, top:455, size:26, bold:true },
+    sexoM:{ left:264, top:454, size:26, bold:true },
+  };
+
+  const TL=(l,t,s)=>({ x:l*SCALE, y: PAGE_H - (t*SCALE) - (s*SCALE) });
+
+  // refs UI
+  const selClinica=$('#clinicaSel'), rHoje=$('#dataHoje'), rOutra=$('#dataOutra'), inpOutraData=$('#dataOutraVal');
+  const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
+  const savedBadge=$('#saved');
 
   function syncDataInputs(){
-    const show = rOutra.checked;
-    inpOutraData.classList.toggle('hidden', !show);
-    if(show) setTimeout(()=>inpOutraData.showPicker ? inpOutraData.showPicker() : inpOutraData.focus(), 60);
+    const show=rOutra.checked; inpOutraData.classList.toggle('hidden',!show);
+    if(show) setTimeout(()=>inpOutraData.showPicker?inpOutraData.showPicker():inpOutraData.focus(),60);
   }
 
-  const LS_KEY='etiqueta_prefs_ui_v2';
+  // prefs
+  const LS_KEY='etiqueta_prefs_ui_v3';
   function savePrefs(){
-    const prefs = {
+    const prefs={
       clinica: selClinica.value,
       dataModo: rHoje.checked?'hoje':'outra',
       outra: inpOutraData.value,
+      medico: inpMedico.value,
       natureza: inpNatureza.value,
-      resumo: inpResumo.value
+      resumo: inpResumo.value,
+      diag: inpDiag.value
     };
     try{ localStorage.setItem(LS_KEY, JSON.stringify(prefs)); }catch(_){}
-    // texto minimalista "Salvo"
     savedBadge.classList.add('show');
     clearTimeout(state.saveTimer);
-    state.saveTimer = setTimeout(()=>savedBadge.classList.remove('show'), 900);
+    state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),900);
   }
-  function loadPrefs(){
+  (function loadPrefs(){
     try{
-      const p = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
-      if(p.clinica) selClinica.value = p.clinica;
+      const p=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+      if(p.clinica) selClinica.value=p.clinica;
       if(p.dataModo==='outra'){ rOutra.checked=true; rHoje.checked=false; }
-      if(p.outra) inpOutraData.value = p.outra;
-      if(p.natureza) inpNatureza.value = p.natureza;
-      if(p.resumo) inpResumo.value = p.resumo;
+      if(p.outra) inpOutraData.value=p.outra;
+      if(p.medico) inpMedico.value=p.medico;
+      if(p.natureza) inpNatureza.value=p.natureza;
+      if(p.resumo) inpResumo.value=p.resumo;
+      if(p.diag) inpDiag.value=p.diag;
     }catch(_){}
     syncDataInputs();
-  }
-  loadPrefs();
+  })();
 
+  // cache template
   async function ensureTemplateLoaded(){
     if(!state.imgBytes){
-      const resp = await fetch('template.jpg', {cache:'reload'});
-      state.imgBytes = await resp.arrayBuffer();
+      const resp=await fetch(IMG_SRC,{cache:'reload'});
+      state.imgBytes=await resp.arrayBuffer();
     }
   }
 
+  // render
   async function generate(){
     await ensureTemplateLoaded();
 
-    const dados = getPayload();
+    const dados=getPayload();
 
-    const pdfDoc = await PDFDocument.create();
-    const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    const pdfDoc=await PDFDocument.create();
+    const page=pdfDoc.addPage([PAGE_W,PAGE_H]);
 
-    const img = await pdfDoc.embedJpg(state.imgBytes);
-    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
+    const img=await pdfDoc.embedJpg(state.imgBytes);
+    page.drawImage(img,{x:0,y:0,width:PAGE_W,height:IMG_HEIGHT*SCALE});
 
-    const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const helv=await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helvB=await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-    const dnBoxes = formatDNBoxes(dados.nascimento||'');
-    const tel = formatPhone(dados.celular||'');
-    const conv = 'SUS';
-    const cns = (dados.cns||'').trim();
-    const cpf = formatCPF(dados.cpf||'');
-    const mae = (dados.nomeMae||'').trim();
-    const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
+    // dados base
+    const nomeCompleto=[dados.nome||'',dados.sobrenome||''].join(' ').trim();
+    const dnBoxes=formatDNBoxes(dados.nascimento||'');
+    const tel=formatPhone(dados.celular||'');
+    const conv='SUS';
+    const cns=(dados.cns||'').trim();
+    const cpf=formatCPF(dados.cpf||'');
+    const mae=(dados.nomeMae||'').trim();
+    const sexoRaw=(dados.sexo||'').toString().trim().toUpperCase();
 
-    const clinica = selClinica.value;
-    const natureza = (inpNatureza.value||'').trim();
-    const resumo = (inpResumo.value||'').trim();
-    const dataColeta = rHoje.checked ? todayBR() : formatDateBRFromInput(inpOutraData.value);
+    // dados UI
+    const clinica=selClinica.value;
+    const medicoReq=(inpMedico.value||'').trim();
+    const natureza=(inpNatureza.value||'').trim();
+    const resumo=(inpResumo.value||'').trim();
+    const diag=(inpDiag.value||'').trim();
+    const dataColeta=rHoje.checked?todayBR():formatDateBRFromInput(inpOutraData.value);
 
-    const VALUES = {
+    const VALUES={
       clinica,
-      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
-      cns, cpf, nomeMae:mae,
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv, cns, cpf, nomeMae:mae,
       sexoF: sexoRaw.startsWith('F') ? 'X' : '',
       sexoM: sexoRaw.startsWith('M') ? 'X' : '',
-      dataColeta
+      medicoReq, dataColeta
     };
 
     // textos simples
-    Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
-      if(key==='natureza' || key==='resumo') return;
-      const value = VALUES[key]; if(!value) return;
-      const sizePt = (cfg.size||12) * SCALE;
-      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-      page.drawText(String(value), { x, y, size:sizePt, font: cfg.bold?helvB:helv, color: rgb(0,0,0) });
-    });
-
-    // wrap (natureza/resumo)
-    for(const key of ['natureza','resumo']){
-      const cfg = FIELDS_TL[key];
-      const value = (key==='natureza'? natureza : resumo);
-      if(!value) continue;
-      const sizePt = (cfg.size||12) * SCALE;
-      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-      const maxWidthPt = (cfg.wrapPx || 800) * SCALE;
-      const words = String(value).split(/\s+/);
-      const width = t => helv.widthOfTextAtSize(t, sizePt);
-      const lines=[]; let line='';
-      for(const w of words){
-        const test = line ? line+' '+w : w;
-        if(width(test) <= maxWidthPt){ line=test; }
-        else{ if(line) lines.push(line); line=w; }
-      }
-      if(line) lines.push(line);
-      const lh = sizePt * 1.25;
-      lines.forEach((ln,i)=> page.drawText(ln, { x, y: y-(i*lh), size:sizePt, font:helv, color:rgb(0,0,0) }));
+    for(const [key,cfg] of Object.entries(FIELDS_TL)){
+      if(['natureza','resumo','diag'].includes(key)) continue;
+      const value=VALUES[key]; if(!value) continue;
+      const sizePt=(cfg.size||12)*SCALE;
+      const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
+      page.drawText(String(value),{x,y,size:sizePt,font:cfg.bold?helvB:helv,color:rgb(0,0,0)});
     }
 
+    // wrap para campos longos
+    function drawWrapped(text,cfg){
+      if(!text) return;
+      const sizePt=(cfg.size||12)*SCALE;
+      const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
+      const maxWidthPt=(cfg.wrapPx||800)*SCALE;
+      const words=String(text).split(/\s+/);
+      const width=t=>helv.widthOfTextAtSize(t,sizePt);
+      const lines=[]; let line='';
+      for(const w of words){ const test=line?line+' '+w:w;
+        if(width(test)<=maxWidthPt){ line=test; } else { if(line) lines.push(line); line=w; } }
+      if(line) lines.push(line);
+      const lh=sizePt*1.25;
+      lines.forEach((ln,i)=>page.drawText(ln,{x,y:y-(i*lh),size:sizePt,font:helv,color:rgb(0,0,0)}));
+    }
+    drawWrapped(natureza,FIELDS_TL.natureza);
+    drawWrapped(resumo,FIELDS_TL.resumo);
+    drawWrapped(diag,FIELDS_TL.diag);
+
     if(state.blobUrl) URL.revokeObjectURL(state.blobUrl);
-    const bytes = await pdfDoc.save();
-    const blob = new Blob([bytes], { type:'application/pdf' });
-    state.blobUrl = URL.createObjectURL(blob);
-    document.getElementById('preview').src = state.blobUrl;
-    document.getElementById('btnDownload').href = state.blobUrl;
+    const bytes=await pdfDoc.save();
+    const blob=new Blob([bytes],{type:'application/pdf'});
+    state.blobUrl=URL.createObjectURL(blob);
+    $('#preview').src=state.blobUrl;
+    $('#btnDownload').href=state.blobUrl;
 
     savePrefs();
   }
 
   // debounce
-  const DEBOUNCE_MS = 700;
+  const DEBOUNCE_MS=700;
   function scheduleGenerate(kind){
-    if(kind==='typing'){
-      clearTimeout(state.debounceId);
-      state.debounceId = setTimeout(()=>generate(), DEBOUNCE_MS);
-      return;
-    }
-    clearTimeout(state.debounceId);
-    generate();
+    if(kind==='typing'){ clearTimeout(state.debounceId); state.debounceId=setTimeout(generate,DEBOUNCE_MS); return; }
+    clearTimeout(state.debounceId); generate();
   }
 
   // eventos
-  const form = document.getElementById('formCard');
-
-  form.addEventListener('input', e=>{
-    const t = e.target;
-    if(t.id==='naturezaInp' || t.id==='resumoInp'){ scheduleGenerate('typing'); }
+  const form=$('#formCard');
+  form.addEventListener('input',e=>{
+    const id=e.target.id;
+    if(['medicoInp','naturezaInp','resumoInp','diagInp'].includes(id)) scheduleGenerate('typing');
   });
-
-  form.addEventListener('change', e=>{
-    const id = e.target.id;
-    if(id==='clinicaSel' || id==='dataOutraVal' || id==='dataHoje' || id==='dataOutra'){
-      if(id==='dataHoje' || id==='dataOutra') syncDataInputs();
+  form.addEventListener('change',e=>{
+    const id=e.target.id;
+    if(['clinicaSel','dataOutraVal','dataHoje','dataOutra'].includes(id)){
+      if(id==='dataHoje'||id==='dataOutra') syncDataInputs();
       scheduleGenerate('instant');
     }
   });
 
+  // inicial
   generate();
-  window.addEventListener('hashchange', ()=>scheduleGenerate('instant'));
+  window.addEventListener('hashchange',()=>scheduleGenerate('instant'));
 
-  document.getElementById('btnPrint').onclick = () => {
-    const ifr = document.getElementById('preview');
-    if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
-  };
+  // imprimir
+  $('#btnPrint').onclick=()=>{ const ifr=$('#preview'); if(ifr&&ifr.contentWindow){ ifr.contentWindow.focus(); ifr.contentWindow.print(); } };
 })();
 </script>
 </body>
