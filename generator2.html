@@ -87,6 +87,22 @@
 
     .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
     .hidden{display:none!important}
+    /* ===== Placeholders ===== */
+
+    /* opção padrão (boa acessibilidade, contraste mais alto) */
+    input::placeholder,
+    textarea::placeholder {
+      color: #6b7280; /* gray-500 */
+      opacity: 0.9;
+    }
+    
+    /* opção minimalista (mais clean, contraste mais suave) */
+    body.minimal input::placeholder,
+    body.minimal textarea::placeholder {
+      color: #9ca3af; /* gray-400 */
+      opacity: 1; /* força a cor definida */
+    }
+
   </style>
 
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
