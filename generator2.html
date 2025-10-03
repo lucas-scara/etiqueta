@@ -65,10 +65,13 @@
     .saved.show{opacity:1}
     .preview iframe{width:100%;height:100%;border:0;border-radius:8px;background:#111}
 
+    /* Nº de frascos inline */
+    .fr-group{display:flex;gap:14px;align-items:center;flex-wrap:nowrap}
+    .fr-group .radio{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+    .fr-group input[type=number]{width:80px;margin-left:4px}
+    @media (max-width:560px){ .fr-group{flex-wrap:wrap} }
+
     .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-    .inline input[type=number]{width:90px}
-    .fr-group{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-    .fr-group .radio{display:inline-flex;align-items:center;gap:6px}
     .hidden{display:none!important}
   </style>
 
@@ -125,17 +128,17 @@
             <label for="naturezaInp">Natureza do material</label>
             <span class="hint">descreva sucintamente</span>
           </div>
-          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar; biópsia de pleura; etc."></textarea>
+          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar; fragmento de mucosa; etc."></textarea>
         </div>
 
         <div class="field">
           <label for="resumoInp">Resumo clínico</label>
-          <textarea id="resumoInp" placeholder="História clínica, sinais e sintomas..."></textarea>
+          <textarea id="resumoInp" placeholder="Ex.: História clínica, hipótese diagnóstica..."></textarea>
         </div>
 
         <div class="field">
           <label for="diagInp">Diagnóstico clínico</label>
-          <textarea id="diagInp" placeholder="Hipótese diagnóstica, achados prévios, etc."></textarea>
+          <textarea id="diagInp" placeholder="Ex.: hipótese diagnóstica, achados prévios, etc."></textarea>
         </div>
 
         <div class="actions">
@@ -179,7 +182,7 @@
         const b64=decodeURIComponent(m[1]);
         const json=decodeURIComponent(escape(atob(b64)));
         return JSON.parse(json);
-      }catch(e){return null;}
+      }catch(e){ return null; }
     };
     return pick(location.hash)||pick(location.search)||{};
   }
@@ -200,13 +203,8 @@
     const d=onlyDigits(s); if(d.length!==11) return s;
     return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
   }
-  const formatDateBRFromInput = (ymd) => {
-    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:'';
-  };
-  const todayBR=()=>{
-    const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear();
-    return `${dd}/${mm}/${yy}`;
-  };
+  const formatDateBRFromInput=(ymd)=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:''; };
+  const todayBR=()=>{ const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0'), yy=d.getFullYear(); return `${dd}/${mm}/${yy}`; };
 
   // coordenadas (px na imagem)
   const FIELDS_TL={
@@ -220,7 +218,7 @@
     cpf:{ left:475, top:555, size:28 },
     nomeMae:{ left:275, top:602, size:28 },
 
-    // frascos (marca "X" nos parênteses e número no sublinhado)
+    /* frascos: X nos parênteses; número só quando "Outros" */
     fr1:{ left:708, top:557, size:18, bold:true },
     fr2:{ left:744, top:557, size:18, bold:true },
     fr3:{ left:780, top:557, size:18, bold:true },
@@ -245,8 +243,7 @@
   const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
   const savedBadge=$('#saved');
   const frRadios=[...document.querySelectorAll('input[name="frOpt"]')];
-  const frVal=$('#frVal');
-  const frOutros=$('#frOutros');
+  const frVal=$('#frVal'), frOutros=$('#frOutros');
 
   function syncDataInputs(){
     const show=rOutra.checked; inpOutraData.classList.toggle('hidden',!show);
@@ -255,7 +252,7 @@
   function syncFrascosInput(){
     const isOutros=frOutros.checked;
     frVal.classList.toggle('hidden', !isOutros);
-    if(isOutros && !frVal.value) frVal.value = '1';
+    if(isOutros && !frVal.value) frVal.value='1';
   }
 
   // prefs
@@ -274,9 +271,8 @@
       frVal: frVal.value || ''
     };
     try{ localStorage.setItem(LS_KEY, JSON.stringify(prefs)); }catch(_){}
-    savedBadge.classList.add('show');
-    clearTimeout(state.saveTimer);
-    state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),1000);
+    savedBadge.classList.add('show'); clearTimeout(state.saveTimer);
+    state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),900);
   }
   (function loadPrefs(){
     try{
@@ -288,13 +284,10 @@
       if(p.natureza) inpNatureza.value=p.natureza;
       if(p.resumo) inpResumo.value=p.resumo;
       if(p.diag) inpDiag.value=p.diag;
-      if(p.frOpt){
-        const r = frRadios.find(x=>x.value===p.frOpt); if(r) r.checked=true;
-      }
+      if(p.frOpt){ const r=frRadios.find(x=>x.value===p.frOpt); if(r) r.checked=true; }
       if(p.frVal) frVal.value=p.frVal;
     }catch(_){}
-    syncDataInputs();
-    syncFrascosInput();
+    syncDataInputs(); syncFrascosInput();
   })();
 
   // cache template
@@ -333,11 +326,10 @@
     // frascos (UI)
     const sel = frRadios.find(r=>r.checked)?.value || '';
     const frCount = sel==='outros' ? parseInt(frVal.value||'0',10) : (sel?parseInt(sel,10):0);
-    const frKey = sel==='outros' ? 'frOutros' : (sel ? ('fr'+sel) : null);
 
     // dados UI
     const clinica=selClinica.value;
-    const medicoReq=(inpMedico.value||'').trim();
+    const medicoReq=(($('#medicoInp').value)||'').trim();
     const natureza=(inpNatureza.value||'').trim();
     const resumo=(inpResumo.value||'').trim();
     const diag=(inpDiag.value||'').trim();
@@ -360,16 +352,17 @@
       page.drawText(String(value),{x,y,size:sizePt,font:cfg.bold?helvB:helv,color:rgb(0,0,0)});
     }
 
-    // frascos: marca X e escreve o número
-    if(frCount>0){
-      // número no espaço sublinhado
-      const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*SCALE, nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
-      page.drawText(String(frCount),{x:nPos.x,y:nPos.y,size:nSize,font:helv,color:rgb(0,0,0)});
-      // X no parêntese selecionado
-      const markKey = frKey || 'frOutros';
+    // frascos:
+    if(sel){ // sempre marca um X em algum parêntese
+      const markKey = sel==='outros' ? 'frOutros' : ('fr'+sel);
       const mCfg=FIELDS_TL[markKey]; if(mCfg){
         const mSize=(mCfg.size||12)*SCALE, mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
         page.drawText('X',{x:mPos.x,y:mPos.y,size:mSize,font:helvB,color:rgb(0,0,0)});
+      }
+      // número no sublinhado: SOMENTE quando "outros" e valor > 0
+      if(sel==='outros' && frCount>0){
+        const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*SCALE, nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
+        page.drawText(String(frCount),{x:nPos.x,y:nPos.y,size:nSize,font:helv,color:rgb(0,0,0)});
       }
     }
 
@@ -399,6 +392,7 @@
     $('#preview').src=state.blobUrl;
     $('#btnDownload').href=state.blobUrl;
 
+    // salvo (texto minimalista)
     savePrefs();
   }
 
@@ -419,7 +413,6 @@
     const id=e.target.id;
     if(['clinicaSel','dataOutraVal','dataHoje','dataOutra','frVal'].includes(id)){
       if(id==='dataHoje'||id==='dataOutra') syncDataInputs();
-      if(id==='frVal'){} // já cai no instant
       scheduleGenerate('instant');
     }
     if(e.target.name==='frOpt'){
