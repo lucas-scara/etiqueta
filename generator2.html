@@ -47,8 +47,13 @@
     .seg label{ margin:0; font-weight:500; cursor:pointer; user-select:none; }
     .seg input{display:none}
     .seg span{ display:inline-block; padding:8px 14px; transition: background .15s, color .15s; }
-    .seg input:not(:checked)+span:hover{ background:#f3f4f6; }
-    .seg input:checked+span{ background:var(--primary); color:#fff; }
+    .seg input:not(:checked) + span:hover{ background:#f3f4f6; }
+    .seg input:checked + span{ background:var(--primary); color:#fff; }
+
+    /* linha inline para frascos (sem quebra) */
+    .row-inline{display:flex; gap:12px; align-items:center; flex-wrap:nowrap}
+    .row-inline .inline{display:flex; align-items:center; gap:6px; white-space:nowrap}
+    #frOutrosVal{ width:90px; padding:8px 10px; }
 
     .actions{ display:flex; gap:10px; justify-content:center; align-items:center; position:sticky; bottom:0; padding:10px; backdrop-filter:blur(6px); }
     .btn{ padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; font-size:14px; font-weight:600; transition:transform .05s, background .15s, border-color .15s; }
@@ -63,7 +68,7 @@
       border-radius:var(--radius); box-shadow:var(--shadow);
       padding:12px; position:sticky; top:12px;
       height:calc(100vh - 120px); min-height:520px;
-      display:flex; flex-direction:column;
+      display:flex; flex-direction:column; position:relative;
     }
     .panelTitle{ font-size:14px; font-weight:600; color:#374151; margin:2px 2px 8px; }
     .preview iframe{ width:100%; height:100%; border:0; border-radius:8px; background:#111; }
@@ -78,8 +83,6 @@
     }
     .saved.show{opacity:1}
 
-    .row-inline{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .row-inline .inline{display:flex; align-items:center; gap:8px}
     .hidden{display:none !important}
   </style>
 
@@ -95,7 +98,6 @@
     <div class="grid">
       <!-- Form (1/3) -->
       <div class="card" id="formCard">
-
         <div class="field">
           <label for="clinicaSel">Nome da clínica</label>
           <select id="clinicaSel">
@@ -111,6 +113,19 @@
             <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
           </div>
           <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
+        </div>
+
+        <!-- Nº de frascos (após Data) -->
+        <div class="field">
+          <label>Nº de frascos</label>
+          <div class="row-inline" role="group" aria-label="Número de frascos">
+            <label class="inline"><input type="radio" name="frascos" value="1" id="fr1">1</label>
+            <label class="inline"><input type="radio" name="frascos" value="2" id="fr2">2</label>
+            <label class="inline"><input type="radio" name="frascos" value="3" id="fr3">3</label>
+            <label class="inline"><input type="radio" name="frascos" value="4" id="fr4">4</label>
+            <label class="inline"><input type="radio" name="frascos" value="outros" id="frOutros">Outros</label>
+            <input class="hidden" type="number" id="frOutrosVal" min="1" step="1" placeholder="Qtd.">
+          </div>
         </div>
 
         <div class="field">
@@ -130,15 +145,8 @@
         </div>
 
         <div class="field">
-          <label>Nº de frascos</label>
-          <div class="row-inline" role="group" aria-label="Número de frascos">
-            <label class="inline"><input type="radio" name="frascos" value="1" id="fr1">1</label>
-            <label class="inline"><input type="radio" name="frascos" value="2" id="fr2">2</label>
-            <label class="inline"><input type="radio" name="frascos" value="3" id="fr3">3</label>
-            <label class="inline"><input type="radio" name="frascos" value="4" id="fr4">4</label>
-            <label class="inline"><input type="radio" name="frascos" value="outros" id="frOutros">Outros</label>
-            <input class="hidden" type="number" id="frOutrosVal" min="1" step="1" placeholder="Qtd." style="width:120px">
-          </div>
+          <label for="diagInp">Diagnóstico clínico</label>
+          <textarea id="diagInp" placeholder="Ex.: hipótese diagnóstica, achados prévios, etc."></textarea>
         </div>
 
         <div class="actions">
@@ -200,10 +208,10 @@
     cpf:{left:475, top:555, size:28},
     nomeMae:{left:275, top:602, size:28},
 
-    medico:{left:325, top:665, size:24, wrapPx:820},     // novo
+    medico:{left:325, top:665, size:24, wrapPx:820},
     natureza:{left:358, top:708, size:24, wrapPx:820},
     resumo:{left:295, top:815, size:24, wrapPx:820},
-    diagnostico:{left:295, top:980, size:24, wrapPx:820},// novo
+    diagnostico:{left:295, top:980, size:24, wrapPx:820},
     dataColeta:{left:240, top:1130, size:24},
 
     // Sexo
@@ -215,8 +223,8 @@
     fr2:{left:935, top:555, size:22, bold:true},
     fr3:{left:980, top:555, size:22, bold:true},
     fr4:{left:1025, top:555, size:22, bold:true},
-    frOutrosNum:{left:1065, top:555, size:22},          // número digitado no sublinhado
-    frOutrosBox:{left:1145, top:555, size:22, bold:true} // parêntese de "outros"
+    frOutrosNum:{left:1065, top:555, size:22},
+    frOutrosBox:{left:1145, top:555, size:22, bold:true}
   };
 
   const TL=(l,t,s)=>({ x:l*SCALE, y:PAGE_H-(t*SCALE)-(s*SCALE) });
@@ -224,7 +232,7 @@
   // UI refs
   const selClinica=$('#clinicaSel');
   const rHoje=$('#dataHoje'), rOutra=$('#dataOutra'), inpOutraData=$('#dataOutraVal');
-  const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp');
+  const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
   const savedBadge=$('#saved');
   const rFrascos=document.querySelectorAll('input[name="frascos"]');
   const frOutros=$('#frOutros'), frOutrosVal=$('#frOutrosVal');
@@ -241,7 +249,7 @@
   }
 
   // prefs
-  const LS_KEY='etiqueta_prefs_ui_v3';
+  const LS_KEY='etiqueta_prefs_ui_v4';
   function savePrefs(){
     const selectedRadio = [...rFrascos].find(r=>r.checked);
     const prefs={
@@ -251,6 +259,7 @@
       medico:inpMedico.value,
       natureza:inpNatureza.value,
       resumo:inpResumo.value,
+      diagnostico:inpDiag.value,
       frascos:selectedRadio?selectedRadio.value:'',
       frOutrosVal:frOutrosVal.value
     };
@@ -259,7 +268,7 @@
     clearTimeout(state.saveTimer);
     state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),900);
   }
-  (function loadPrefs(){
+  ;(function loadPrefs(){
     try{
       const p=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
       if(p.clinica) selClinica.value=p.clinica;
@@ -268,10 +277,8 @@
       if(p.medico) inpMedico.value=p.medico;
       if(p.natureza) inpNatureza.value=p.natureza;
       if(p.resumo) inpResumo.value=p.resumo;
-      if(p.frascos){
-        const rd=[...rFrascos].find(r=>r.value===p.frascos);
-        if(rd) rd.checked=true;
-      }
+      if(p.diagnostico) inpDiag.value=p.diagnostico;
+      if(p.frascos){ const rd=[...rFrascos].find(r=>r.value===p.frascos); if(rd) rd.checked=true; }
       if(p.frOutrosVal) frOutrosVal.value=p.frOutrosVal;
     }catch(_){}
     syncDataInputs(); syncFrascosInput();
@@ -327,6 +334,7 @@
     const medico=(inpMedico.value||'').trim();
     const natureza=(inpNatureza.value||'').trim();
     const resumo=(inpResumo.value||'').trim();
+    const diagnostico=(inpDiag.value||'').trim();
     const dataColeta=rHoje.checked?todayBR():formatDateBRFromInput(inpOutraData.value);
 
     const frSel=[...rFrascos].find(r=>r.checked)?.value||'';
@@ -349,11 +357,10 @@
     }
 
     // blocos com wrap
-    drawWrapped(page, helv, medico,      FIELDS_TL.medico);
-    drawWrapped(page, helv, natureza,    FIELDS_TL.natureza);
-    drawWrapped(page, helv, resumo,      FIELDS_TL.resumo);
-    drawWrapped(page, helv, (''),        {left:0,top:0,size:12}); // no-op
-    drawWrapped(page, helv, ($('#diagInp')?.value||'').trim(), FIELDS_TL.diagnostico);
+    drawWrapped(page, helv, medico,       FIELDS_TL.medico);
+    drawWrapped(page, helv, natureza,     FIELDS_TL.natureza);
+    drawWrapped(page, helv, resumo,       FIELDS_TL.resumo);
+    drawWrapped(page, helv, diagnostico,  FIELDS_TL.diagnostico);
 
     // nº de frascos
     const markX=(pos)=>{ const cfg=FIELDS_TL[pos]; const sizePt=(cfg.size||22)*SCALE; const {x,y}=TL(cfg.left,cfg.top,cfg.size||22);
@@ -364,7 +371,6 @@
     else if(frSel==='3') markX('fr3');
     else if(frSel==='4') markX('fr4');
     else if(frSel==='outros'){
-      // número digitado e marca no parêntese
       if(frOutrosQtd){
         const cfg=FIELDS_TL.frOutrosNum; const sizePt=(cfg.size||22)*SCALE;
         const {x,y}=TL(cfg.left,cfg.top,cfg.size||22);
@@ -394,7 +400,7 @@
   const form=$('#formCard');
   form.addEventListener('input', e=>{
     const t=e.target.id;
-    if(t==='naturezaInp'||t==='resumoInp'||t==='medicoInp'||t==='frOutrosVal'){ scheduleGenerate('typing'); }
+    if(t==='naturezaInp'||t==='resumoInp'||t==='medicoInp'||t==='diagInp'||t==='frOutrosVal'){ scheduleGenerate('typing'); }
   });
   form.addEventListener('change', e=>{
     const id=e.target.id;
@@ -404,36 +410,6 @@
       scheduleGenerate('instant');
     }
   });
-
-  // Diagnóstico clínico (textarea) – criar aqui para facilitar leitura do generate()
-  const diagTA=document.createElement('textarea');
-  diagTA.id='diagInp'; diagTA.className='hidden';
-  document.body.appendChild(diagTA); // apenas para facilitar query; o valor vem do form abaixo
-  // Troca pelo campo real:
-  const diagField=document.createElement('div');
-  diagField.className='field';
-  diagField.innerHTML=`<label for="diagReal">Diagnóstico clínico</label>
-                        <textarea id="diagReal" placeholder="Ex.: hipótese diagnóstica, achados prévios, etc."></textarea>`;
-  document.getElementById('formCard').insertBefore(diagField, document.querySelector('.actions'));
-  const diagReal=document.getElementById('diagReal');
-  diagReal.addEventListener('input', ()=>{ diagTA.value=diagReal.value; scheduleGenerate('typing'); });
-
-  // carregar preferências também para diagnóstico
-  (function syncDiagFromLS(){
-    try{
-      const p=JSON.parse(localStorage.getItem('etiqueta_prefs_ui_v3')||'{}');
-      if(p.diagnostico) { diagReal.value=p.diagnostico; diagTA.value=p.diagnostico; }
-    }catch(_){}
-  })();
-
-  // salvar diagnóstico junto
-  const oldSave=savePrefs;
-  window.savePrefs=function(){
-    const saved=JSON.parse(localStorage.getItem('etiqueta_prefs_ui_v3')||'{}');
-    saved.diagnostico=diagReal.value||'';
-    localStorage.setItem('etiqueta_prefs_ui_v3', JSON.stringify(saved));
-    oldSave();
-  };
 
   // inicial
   generate();
