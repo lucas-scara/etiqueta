@@ -2,184 +2,414 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Etiqueta / Requisição (PDF A4)</title>
+  <title>Requisição / Impressão (A4)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
+
   <style>
-    body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:12px}
-    .bar{
-      display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;
-      justify-content:center; align-items:center;
+    :root{
+      --bg:#f7f7f9; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+      --border:#e5e7eb; --primary:#2563eb; --radius:12px;
+      --shadow:0 6px 20px rgba(0,0,0,.06); --w:1280px;
     }
-    .btn{padding:8px 14px;border:1px solid #dcdcdc;border-radius:8px;background:#f7f7f7;cursor:pointer;font-size:14px}
-    .btn:hover{background:#efefef}
-    iframe{width:100%;height:80vh;border:1px solid #e6e6e6;border-radius:10px}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text)}
+    .header{max-width:var(--w);margin:18px auto 8px;padding:0 16px;
+      display:flex;justify-content:space-between;align-items:center}
+    .header h1{font-size:18px;margin:0;font-weight:600}
+
+    .container{max-width:var(--w);margin:0 auto 20px;padding:0 16px}
+    .grid{display:grid;gap:16px;grid-template-columns:1fr;}
+    @media(min-width:980px){.grid{grid-template-columns:1fr 2fr}}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    label{font-size:13px;color:#374151;font-weight:600}
+    select,input[type=text],textarea,input[type=date],input[type=number]{
+      width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+      font-size:14px;background:#fff;color:var(--text);outline:none;
+      transition:border-color .15s, box-shadow .15s}
+    select:focus,input:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    textarea{min-height:72px;resize:vertical}
+    .muted{font-size:12px;color:var(--muted)}
+    .hint{font-size:12px;color:var(--muted)}
+
+    /* segmented control (Hoje / Outra data) */
+    .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .seg label{margin:0;font-weight:500;cursor:pointer;user-select:none}
+    .seg input{display:none}
+    .seg span{display:inline-block;padding:8px 14px;transition:background .15s,color .15s}
+    .seg input:not(:checked)+span:hover{background:#f3f4f6}
+    .seg input:checked+span{background:var(--primary);color:#fff}
+
+    /* ★ Linha de data: ficar tudo na mesma linha */
+    .date-inline{display:flex;align-items:center;height:41px;gap:10px;flex-wrap:nowrap}
+    /* ★ Campo de data compacto e sem esticar a linha */
+    #dataOutraVal{
+      width:180px;            /* largura fixa e pequena */
+      min-width:180px;        /* impede encolher demais */
+      flex:0 0 180px;         /* não cresce nem encolhe */
+    }
+    /* Em telas bem estreitas, permitimos quebrar */
+    @media (max-width:560px){
+      .date-inline{flex-wrap:wrap}
+      #dataOutraVal{flex:1 1 180px;width:100%}
+    }
+
+    /* ações */
+    .actions{display:flex;gap:10px;justify-content:center;align-items:center;position:sticky;bottom:0;padding:10px}
+    .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;
+      font-size:14px;font-weight:600;transition:transform .05s,background .15s,border-color .15s}
+    .btn:hover{background:#f3f4f6}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btn.primary:hover{background:#1d4ed8}
+
+    /* painel de prévia */
+    .preview{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:12px;position:sticky;top:10px;height:calc(100vh - 120px);min-height:520px;
+      display:flex;flex-direction:column}
+    .panelTitle{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;color:#374151;margin:2px 2px 8px}
+    .saved{font-size:12px;color:var(--muted);opacity:0;transition:opacity .25s}
+    .saved.show{opacity:1}
+    .preview iframe{width:100%;height:100%;border:0;border-radius:8px;background:#111}
+
+    /* Nº de frascos inline */
+    .fr-group{display:flex;height:38px;gap:14px;align-items:center;flex-wrap:nowrap}
+    .fr-group .radio{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+    .fr-group input[type=number]{width:80px;margin-left:4px}
+    @media (max-width:560px){ .fr-group{flex-wrap:wrap} }
+
+    .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .hidden{display:none!important}
+    /* ===== Placeholders ===== */
+
+    /* opção padrão (boa acessibilidade, contraste mais alto) */
+    input::placeholder,
+    textarea::placeholder {
+      color: #6b7280; /* gray-500 */
+      opacity: 0.9;
+    }
+
   </style>
+
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
-
-  <div class="bar">
-    <button class="btn" id="btnPrint">Imprimir</button>
-    <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+  <div class="header">
+    <h1>Requisição para impressão</h1>
   </div>
 
-  <iframe id="preview"></iframe>
+  <div class="container">
+    <div class="grid">
+      <!-- Form (1/3) -->
+      <div class="card" id="formCard">
+        <div class="field">
+          <label for="clinicaSel">Nome da clínica</label>
+          <select id="clinicaSel">
+            <option>HCB - Centro Cirúrgico</option>
+            <option>HCB - Centro de Endoscopia</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Data</label>
+          <!-- ★ Linha compacta: seletor + input de data lado a lado -->
+          <div class="date-inline">
+            <div class="seg" role="tablist" aria-label="Escolha de data">
+              <label><input type="radio" name="dataModo" id="dataHoje" checked><span>Hoje</span></label>
+              <label><input type="radio" name="dataModo" id="dataOutra"><span>Outra data</span></label>
+            </div>
+            <input type="date" id="dataOutraVal" class="hidden" aria-label="Escolha a data">
+          </div>
+        </div>
+
+        <!-- Nº de frascos -->
+        <div class="field">
+          <label>Nº de frascos</label>
+          <div class="fr-group" aria-label="Número de frascos">
+            <label class="radio"><input type="radio" name="frOpt" value="1"> <span>1</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="2"> <span>2</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="3"> <span>3</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="4"> <span>4</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="outros" id="frOutros"> <span>Outros</span></label>
+            <input type="number" id="frVal" min="1" step="1" placeholder="nº" class="hidden">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="medicoInp">Médico requisitante</label>
+          <input id="medicoInp" type="text" placeholder="Dr(a). Nome Sobrenome — CRM/UF 123456" />
+        </div>
+
+        <div class="field">
+          <div class="row" style="justify-content:space-between">
+            <label for="naturezaInp">Natureza do material</label>
+            <span class="hint">descreva sucintamente</span>
+          </div>
+          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar; fragmento de mucosa; etc."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="resumoInp">Resumo clínico</label>
+          <textarea id="resumoInp" placeholder="Ex.: História clínica, hipótese diagnóstica..."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="diagInp">Diagnóstico clínico</label>
+          <textarea id="diagInp" placeholder="Ex.: hipótese diagnóstica, achados prévios, etc."></textarea>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="btnPrint">Imprimir</button>
+          <a class="btn" id="btnDownload" download="etiqueta.pdf">Baixar PDF</a>
+        </div>
+      </div>
+
+      <!-- Preview (2/3) -->
+      <div class="preview">
+        <div class="panelTitle">
+          <span>Prévia</span>
+          <span class="saved" id="saved">Salvo</span>
+        </div>
+        <iframe id="preview"></iframe>
+      </div>
+    </div>
+  </div>
 
 <script>
 (function(){
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-  // --- imagem base (px) ---
-  const IMG_SRC    = 'template.jpg';
-  const IMG_WIDTH  = 1240;
-  const IMG_HEIGHT = 1755;
+  const IMG_SRC='template.jpg', IMG_WIDTH=1240, IMG_HEIGHT=1755;
+  const PAGE_W=595, PAGE_H=842, SCALE=PAGE_W/IMG_WIDTH;
 
-  // --- PDF A4 (pt) ---
-  const PAGE_W = 595;
-  const PAGE_H = 842;
+  const state={blobUrl:null,saveTimer:null,imgBytes:null,debounceId:null};
 
-  // escala px -> pt
-  const SCALE = PAGE_W / IMG_WIDTH;
+  const $=s=>document.querySelector(s);
+  const onlyDigits=s=>(s||'').replace(/\D+/g,'');
 
-  const state = { blobUrl: null };
-
-  const $ = s => document.querySelector(s);
-  const onlyDigits = s => (s||'').replace(/\D+/g,'');
-
-  // payload
   function getPayload(){
-    const pick = (src) => {
-      const m = src.match(/[?#&]d=([^&]+)/);
-      if(!m) return null;
-      try{
-        const b64 = decodeURIComponent(m[1]);
-        const json = decodeURIComponent(escape(atob(b64)));
-        return JSON.parse(json);
-      }catch(e){ return null; }
-    };
-    return pick(location.hash) || pick(location.search) || {};
+    const pick=(src)=>{ const m=src.match(/[?#&]d=([^&]+)/); if(!m) return null;
+      try{ const b64=decodeURIComponent(m[1]); const json=decodeURIComponent(escape(atob(b64))); return JSON.parse(json); }
+      catch(_){ return null; } };
+    return pick(location.hash)||pick(location.search)||{};
   }
 
-  // === Datas ===
-  function dateDigits8(s){
-    const d = onlyDigits(s);
-    return d.length >= 8 ? d.slice(0,8) : '';
-  }
-  function formatDNBoxes(s){
-    const d8 = dateDigits8(s);
-    if(!d8) return '';
-    const dd = d8.slice(0,2), mm = d8.slice(2,4), yyyy = d8.slice(4,8);
-    // seu espaçamento preferido
-    return `${dd}     ${mm}   ${yyyy}`;
-  }
+  const dateDigits8=s=>{const d=onlyDigits(s);return d.length>=8?d.slice(0,8):'';}
+  function formatDNBoxes(s){ const d8=dateDigits8(s); if(!d8) return ''; const dd=d8.slice(0,2),mm=d8.slice(2,4),yyyy=d8.slice(4,8); return `${dd}     ${mm}   ${yyyy}`; }
+  function formatPhone(s){ const d=onlyDigits(s); if(d.length<10) return s; const ddd=d.slice(0,2),p1=d.length===10?d.slice(2,6):d.slice(2,7),p2=d.length===10?d.slice(6):d.slice(7); return `(${ddd}) ${p1}-${p2}`; }
+  function formatCPF(s){ const d=onlyDigits(s); if(d.length!==11) return s; return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11); }
+  const formatDateBRFromInput=ymd=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd||''); return m?`${m[3]}/${m[2]}/${m[1]}`:''; };
+  const todayBR=()=>{ const d=new Date(); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; };
 
-  // === Máscaras ===
-  function formatPhone(s){
-    const d = onlyDigits(s);
-    if(d.length < 10) return s;
-    const ddd = d.slice(0,2);
-    const part1 = d.length===10 ? d.slice(2,6) : d.slice(2,7);
-    const part2 = d.length===10 ? d.slice(6)   : d.slice(7);
-    return `(${ddd}) ${part1}-${part2}`;
-  }
-  function formatCPF(s){
-    const d = onlyDigits(s);
-    if(d.length!==11) return s;
-    return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9,11);
-  }
+  const FIELDS_TL={
+    clinica:{ left:285, top:275, size:28 },
+    nome:{ left:180, top:390, size:28, bold:true },
+    dn:{ left:356, top:443, size:28 },
+    telefone:{ left:702, top:443, size:28 },
+    convenio:{ left:230, top:504, size:26 },
+    cns:{ left:790, top:500, size:28 },
+    cpf:{ left:475, top:555, size:28 },
+    nomeMae:{ left:275, top:602, size:28 },
 
-  // === Campos e coordenadas (px; origem topo-esquerdo) ===
-  const FONT_SIZE = 28;
-  const FIELDS_TL = {
-    // Nome da clínica (fixo)
-    clinica:   { left:300, top:275,  size:FONT_SIZE },
+    fr1:{ left:885, top:566, size:20, bold:true },
+    fr2:{ left:938, top:566, size:20, bold:true },
+    fr3:{ left:993, top:566, size:20, bold:true },
+    fr4:{ left:1047, top:566, size:20, bold:true },
+    frOutros:{ left:1132, top:566, size:20, bold:true },
+    frNumero:{ left:1085, top:555, size:24 },
 
-    nome:      { left:180, top:390,  size:FONT_SIZE, bold:true },
-    dn:        { left:356, top:443,  size:FONT_SIZE },
-    telefone:  { left:702, top:443,  size:FONT_SIZE },
-    convenio:  { left:235, top:500,  size:FONT_SIZE },
-    cns:       { left:790, top:500,  size:FONT_SIZE },
-    cpf:       { left:475, top:555,  size:FONT_SIZE },
-    nomeMae:   { left:275, top:602,  size:FONT_SIZE },
+    medicoReq:{ left:318, top:658, size:24 },
+    natureza:{ left:358, top:708, size:24, wrapPx:820 },
+    resumo:{ left:295, top:815, size:24, wrapPx:820 },
+    diag:{ left:303, top:975, size:24, wrapPx:820 },
+    dataColeta:{ left:240, top:1130, size:24 },
 
-    // “X” nas caixas de gênero
-    sexoF:     { left:210, top:455,  size:26,        bold:true },
-    sexoM:     { left:264, top:454,  size:26,        bold:true },
+    sexoF:{ left:210, top:455, size:26, bold:true },
+    sexoM:{ left:264, top:454, size:26, bold:true },
   };
 
-  // px -> pt
-  function TL(left, top, fontSizePx){
-    const x_pt = left * SCALE;
-    const y_pt = PAGE_H - (top * SCALE) - (fontSizePx * SCALE);
-    return { x: x_pt, y: y_pt };
+  const TL=(l,t,s)=>({ x:l*SCALE, y: PAGE_H - (t*SCALE) - (s*SCALE) });
+
+  const selClinica=$('#clinicaSel'), rHoje=$('#dataHoje'), rOutra=$('#dataOutra'), inpOutraData=$('#dataOutraVal');
+  const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
+  const savedBadge=$('#saved');
+  const frRadios=[...document.querySelectorAll('input[name="frOpt"]')];
+  const frVal=$('#frVal'), frOutros=$('#frOutros');
+
+  function syncDataInputs(){
+    const show=rOutra.checked; inpOutraData.classList.toggle('hidden',!show);
+    if(show) setTimeout(()=>inpOutraData.showPicker?inpOutraData.showPicker():inpOutraData.focus(),60);
+  }
+  function syncFrascosInput(){
+    const isOutros=frOutros.checked;
+    frVal.classList.toggle('hidden', !isOutros);
+    if(isOutros && !frVal.value) frVal.value='1';
+  }
+
+  const LS_KEY='etiqueta_prefs_ui_v4';
+  function savePrefs(){
+    const checked = frRadios.find(r=>r.checked);
+    const prefs={
+      clinica: selClinica.value,
+      dataModo: rHoje.checked?'hoje':'outra',
+      outra: inpOutraData.value,
+      medico: inpMedico.value,
+      natureza: inpNatureza.value,
+      resumo: inpResumo.value,
+      diag: inpDiag.value,
+      frOpt: checked ? checked.value : '',
+      frVal: frVal.value || ''
+    };
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(prefs)); }catch(_){}
+    savedBadge.classList.add('show'); clearTimeout(state.saveTimer);
+    state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),900);
+  }
+  (function loadPrefs(){
+    try{
+      const p=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+      if(p.clinica) selClinica.value=p.clinica;
+      if(p.dataModo==='outra'){ rOutra.checked=true; rHoje.checked=false; }
+      if(p.outra) inpOutraData.value=p.outra;
+      if(p.medico) inpMedico.value=p.medico;
+      if(p.natureza) inpNatureza.value=p.natureza;
+      if(p.resumo) inpResumo.value=p.resumo;
+      if(p.diag) inpDiag.value=p.diag;
+      if(p.frOpt){ const r=frRadios.find(x=>x.value===p.frOpt); if(r) r.checked=true; }
+      if(p.frVal) frVal.value=p.frVal;
+    }catch(_){}
+    syncDataInputs(); syncFrascosInput();
+  })();
+
+  async function ensureTemplateLoaded(){
+    if(!state.imgBytes){
+      const resp=await fetch(IMG_SRC,{cache:'reload'});
+      state.imgBytes=await resp.arrayBuffer();
+    }
   }
 
   async function generate(){
-    const dados = getPayload();
+    await ensureTemplateLoaded();
 
-    const pdfDoc = await PDFDocument.create();
-    const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    const dados=getPayload();
 
-    // fundo
-    const imgBytes = await fetch(IMG_SRC + '?t=' + Date.now()).then(r=>r.arrayBuffer());
-    const type = IMG_SRC.split('.').pop().toLowerCase();
-    const img = (type === 'png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
-    page.drawImage(img, { x:0, y:0, width:PAGE_W, height:IMG_HEIGHT*SCALE });
+    const pdfDoc=await PDFDocument.create();
+    const page=pdfDoc.addPage([PAGE_W,PAGE_H]);
 
-    const helv  = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const helvB = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const img=await pdfDoc.embedJpg(state.imgBytes);
+    page.drawImage(img,{x:0,y:0,width:PAGE_W,height:IMG_HEIGHT*SCALE});
 
-    // valores
-    const nomeCompleto = [dados.nome||'', dados.sobrenome||''].join(' ').trim();
-    const dnBoxes = formatDNBoxes(dados.nascimento||'');
-    const tel = formatPhone(dados.celular||'');
-    const conv = 'SUS';
-    const cns = (dados.cns||'').trim();
-    const cpf = formatCPF(dados.cpf||'');
-    const mae = (dados.nomeMae||'').trim();
-    const sexoRaw = (dados.sexo||'').toString().trim().toUpperCase();
+    const helv=await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helvB=await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    const VALUES = { 
-      clinica: "HCB - Centro Cirúrgico",
-      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv,
-      cns, cpf, nomeMae:mae,
+    const nomeCompleto=[dados.nome||'',dados.sobrenome||''].join(' ').trim();
+    const dnBoxes=formatDNBoxes(dados.nascimento||'');
+    const tel=formatPhone(dados.celular||'');
+    const conv='SUS';
+    const cns=(dados.cns||'').trim();
+    const cpf=formatCPF(dados.cpf||'');
+    const mae=(dados.nomeMae||'').trim();
+    const sexoRaw=(dados.sexo||'').toString().trim().toUpperCase();
+
+    const sel = frRadios.find(r=>r.checked)?.value || '';
+    const frCount = sel==='outros' ? parseInt(frVal.value||'0',10) : (sel?parseInt(sel,10):0);
+
+    const clinica=selClinica.value;
+    const medicoReq=(($('#medicoInp').value)||'').trim();
+    const natureza=(inpNatureza.value||'').trim();
+    const resumo=(inpResumo.value||'').trim();
+    const diag=(inpDiag.value||'').trim();
+    const dataColeta=rHoje.checked?todayBR():formatDateBRFromInput(inpOutraData.value);
+
+    const VALUES={
+      clinica,
+      nome:nomeCompleto, dn:dnBoxes, telefone:tel, convenio:conv, cns, cpf, nomeMae:mae,
       sexoF: sexoRaw.startsWith('F') ? 'X' : '',
-      sexoM: sexoRaw.startsWith('M') ? 'X' : ''
+      sexoM: sexoRaw.startsWith('M') ? 'X' : '',
+      medicoReq, dataColeta
     };
 
-    // desenhar
-    Object.entries(FIELDS_TL).forEach(([key, cfg])=>{
-      const value = VALUES[key];
-      if(value==null || value==='') return;
-      const sizePt = (cfg.size||12) * SCALE;
-      const { x, y } = TL(cfg.left, cfg.top, cfg.size||12);
-      page.drawText(String(value), {
-        x, y,
-        size: sizePt,
-        font: cfg.bold ? helvB : helv,
-        color: rgb(0,0,0)
-      });
-    });
+    for(const [key,cfg] of Object.entries(FIELDS_TL)){
+      if(['natureza','resumo','diag','fr1','fr2','fr3','fr4','frOutros','frNumero'].includes(key)) continue;
+      const value=VALUES[key]; if(!value) continue;
+      const sizePt=(cfg.size||12)*SCALE;
+      const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
+      page.drawText(String(value),{x,y,size:sizePt,font:cfg.bold?helvB:helv,color:rgb(0,0,0)});
+    }
 
-    if (state.blobUrl){ URL.revokeObjectURL(state.blobUrl); }
-    const bytes = await pdfDoc.save();
-    const blob = new Blob([bytes], { type:'application/pdf' });
-    state.blobUrl = URL.createObjectURL(blob);
-    document.getElementById('preview').src = state.blobUrl;
-    document.getElementById('btnDownload').href = state.blobUrl;
+    if(sel){
+      const markKey = sel==='outros' ? 'frOutros' : ('fr'+sel);
+      const mCfg=FIELDS_TL[markKey]; if(mCfg){
+        const mSize=(mCfg.size||12)*SCALE, mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
+        page.drawText('X',{x:mPos.x,y:mPos.y,size:mSize,font:helvB,color:rgb(0,0,0)});
+      }
+      if(sel==='outros' && frCount>0){
+        const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*SCALE, nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
+        page.drawText(String(frCount),{x:nPos.x,y:nPos.y,size:nSize,font:helv,color:rgb(0,0,0)});
+      }
+    }
+
+    function drawWrapped(text,cfg){
+      if(!text) return;
+      const sizePt=(cfg.size||12)*SCALE;
+      const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
+      const maxWidthPt=(cfg.wrapPx||800)*SCALE;
+      const words=String(text).split(/\s+/);
+      const width=t=>helv.widthOfTextAtSize(t,sizePt);
+      const lines=[]; let line='';
+      for(const w of words){ const test=line?line+' '+w:w;
+        if(width(test)<=maxWidthPt){ line=test; } else { if(line) lines.push(line); line=w; } }
+      if(line) lines.push(line);
+      const lh=sizePt*1.25;
+      lines.forEach((ln,i)=>page.drawText(ln,{x,y:y-(i*lh),size:sizePt,font:helv,color:rgb(0,0,0)}));
+    }
+    drawWrapped(natureza,FIELDS_TL.natureza);
+    drawWrapped(resumo,FIELDS_TL.resumo);
+    drawWrapped(diag,FIELDS_TL.diag);
+
+    if(state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+    const bytes=await pdfDoc.save();
+    const blob=new Blob([bytes],{type:'application/pdf'});
+    state.blobUrl=URL.createObjectURL(blob);
+    $('#preview').src=state.blobUrl;
+    $('#btnDownload').href=state.blobUrl;
+
+    savePrefs();
   }
 
-  // gerar ao abrir e quando o hash mudar (novo paciente)
-  generate();
-  window.addEventListener('hashchange', generate);
+  const DEBOUNCE_MS=700;
+  function scheduleGenerate(kind){
+    if(kind==='typing'){ clearTimeout(state.debounceId); state.debounceId=setTimeout(generate,DEBOUNCE_MS); return; }
+    clearTimeout(state.debounceId); generate();
+  }
 
-  // imprimir direto do iframe
-  document.getElementById('btnPrint').onclick = () => {
-    const ifr = document.getElementById('preview');
-    if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
-  };
+  const form=$('#formCard');
+  form.addEventListener('input',e=>{
+    const id=e.target.id;
+    if(['medicoInp','naturezaInp','resumoInp','diagInp','frVal'].includes(id)) scheduleGenerate('typing');
+  });
+  form.addEventListener('change',e=>{
+    const id=e.target.id;
+    if(['clinicaSel','dataOutraVal','dataHoje','dataOutra','frVal'].includes(id)){
+      if(id==='dataHoje'||id==='dataOutra') syncDataInputs();
+      scheduleGenerate('instant');
+    }
+    if(e.target.name==='frOpt'){
+      syncFrascosInput();
+      scheduleGenerate('instant');
+    }
+  });
+
+  generate();
+  window.addEventListener('hashchange',()=>scheduleGenerate('instant'));
+
+  $('#btnPrint').onclick=()=>{ const ifr=$('#preview'); if(ifr&&ifr.contentWindow){ ifr.contentWindow.focus(); ifr.contentWindow.print(); } };
 })();
 </script>
 </body>
