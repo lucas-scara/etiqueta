@@ -30,7 +30,7 @@
     .field{display:flex;flex-direction:column;gap:6px}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     label{font-size:13px;color:#374151;font-weight:600}
-    select,input[type=text],textarea,input[type=date]{
+    select,input[type=text],textarea,input[type=date],input[type=number]{
       width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
       font-size:14px;background:#fff;color:var(--text);outline:none;
       transition:border-color .15s, box-shadow .15s}
@@ -67,6 +67,8 @@
 
     .inline{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
     .inline input[type=number]{width:90px}
+    .fr-group{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .fr-group .radio{display:inline-flex;align-items:center;gap:6px}
     .hidden{display:none!important}
   </style>
 
@@ -100,6 +102,19 @@
           </div>
         </div>
 
+        <!-- Nº de frascos -->
+        <div class="field">
+          <label>Nº de frascos</label>
+          <div class="fr-group" aria-label="Número de frascos">
+            <label class="radio"><input type="radio" name="frOpt" value="1"> <span>1</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="2"> <span>2</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="3"> <span>3</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="4"> <span>4</span></label>
+            <label class="radio"><input type="radio" name="frOpt" value="outros" id="frOutros"> <span>Outros</span></label>
+            <input type="number" id="frVal" min="1" step="1" placeholder="nº" class="hidden">
+          </div>
+        </div>
+
         <div class="field">
           <label for="medicoInp">Médico requisitante</label>
           <input id="medicoInp" type="text" placeholder="Dr(a). Nome Sobrenome — CRM/UF 123456" />
@@ -110,17 +125,17 @@
             <label for="naturezaInp">Natureza do material</label>
             <span class="hint">descreva sucintamente</span>
           </div>
-          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar; fragmento de mucosa; etc."></textarea>
+          <textarea id="naturezaInp" placeholder="Ex.: Vesícula biliar; biópsia de pleura; etc."></textarea>
         </div>
 
         <div class="field">
           <label for="resumoInp">Resumo clínico</label>
-          <textarea id="resumoInp" placeholder="Ex.: História clínica, hipótese diagnóstica..."></textarea>
+          <textarea id="resumoInp" placeholder="História clínica, sinais e sintomas..."></textarea>
         </div>
 
         <div class="field">
           <label for="diagInp">Diagnóstico clínico</label>
-          <textarea id="diagInp" placeholder="Ex.: hipótese diagnóstica, achados prévios, etc."></textarea>
+          <textarea id="diagInp" placeholder="Hipótese diagnóstica, achados prévios, etc."></textarea>
         </div>
 
         <div class="actions">
@@ -205,11 +220,18 @@
     cpf:{ left:475, top:555, size:28 },
     nomeMae:{ left:275, top:602, size:28 },
 
-    // novos
-    medicoReq:{ left:285, top:668, size:24 },                // linha “Médico Requisitante”
-    natureza:{ left:358, top:708, size:24, wrapPx:820 },     // NATUREZA DO MATERIAL
-    resumo:{ left:295, top:815, size:24, wrapPx:820 },       // RESUMO CLÍNICO
-    diag:{ left:295, top:980, size:24, wrapPx:820 },         // DIAGNÓSTICO CLÍNICO
+    // frascos (marca "X" nos parênteses e número no sublinhado)
+    fr1:{ left:708, top:557, size:18, bold:true },
+    fr2:{ left:744, top:557, size:18, bold:true },
+    fr3:{ left:780, top:557, size:18, bold:true },
+    fr4:{ left:816, top:557, size:18, bold:true },
+    frOutros:{ left:943, top:557, size:18, bold:true },
+    frNumero:{ left:873, top:555, size:24 },
+
+    medicoReq:{ left:285, top:668, size:24 },
+    natureza:{ left:358, top:708, size:24, wrapPx:820 },
+    resumo:{ left:295, top:815, size:24, wrapPx:820 },
+    diag:{ left:295, top:980, size:24, wrapPx:820 },
     dataColeta:{ left:240, top:1130, size:24 },
 
     sexoF:{ left:210, top:455, size:26, bold:true },
@@ -222,15 +244,24 @@
   const selClinica=$('#clinicaSel'), rHoje=$('#dataHoje'), rOutra=$('#dataOutra'), inpOutraData=$('#dataOutraVal');
   const inpMedico=$('#medicoInp'), inpNatureza=$('#naturezaInp'), inpResumo=$('#resumoInp'), inpDiag=$('#diagInp');
   const savedBadge=$('#saved');
+  const frRadios=[...document.querySelectorAll('input[name="frOpt"]')];
+  const frVal=$('#frVal');
+  const frOutros=$('#frOutros');
 
   function syncDataInputs(){
     const show=rOutra.checked; inpOutraData.classList.toggle('hidden',!show);
     if(show) setTimeout(()=>inpOutraData.showPicker?inpOutraData.showPicker():inpOutraData.focus(),60);
   }
+  function syncFrascosInput(){
+    const isOutros=frOutros.checked;
+    frVal.classList.toggle('hidden', !isOutros);
+    if(isOutros && !frVal.value) frVal.value = '1';
+  }
 
   // prefs
-  const LS_KEY='etiqueta_prefs_ui_v3';
+  const LS_KEY='etiqueta_prefs_ui_v4';
   function savePrefs(){
+    const checked = frRadios.find(r=>r.checked);
     const prefs={
       clinica: selClinica.value,
       dataModo: rHoje.checked?'hoje':'outra',
@@ -238,12 +269,14 @@
       medico: inpMedico.value,
       natureza: inpNatureza.value,
       resumo: inpResumo.value,
-      diag: inpDiag.value
+      diag: inpDiag.value,
+      frOpt: checked ? checked.value : '',
+      frVal: frVal.value || ''
     };
     try{ localStorage.setItem(LS_KEY, JSON.stringify(prefs)); }catch(_){}
     savedBadge.classList.add('show');
     clearTimeout(state.saveTimer);
-    state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),900);
+    state.saveTimer=setTimeout(()=>savedBadge.classList.remove('show'),1000);
   }
   (function loadPrefs(){
     try{
@@ -255,8 +288,13 @@
       if(p.natureza) inpNatureza.value=p.natureza;
       if(p.resumo) inpResumo.value=p.resumo;
       if(p.diag) inpDiag.value=p.diag;
+      if(p.frOpt){
+        const r = frRadios.find(x=>x.value===p.frOpt); if(r) r.checked=true;
+      }
+      if(p.frVal) frVal.value=p.frVal;
     }catch(_){}
     syncDataInputs();
+    syncFrascosInput();
   })();
 
   // cache template
@@ -292,6 +330,11 @@
     const mae=(dados.nomeMae||'').trim();
     const sexoRaw=(dados.sexo||'').toString().trim().toUpperCase();
 
+    // frascos (UI)
+    const sel = frRadios.find(r=>r.checked)?.value || '';
+    const frCount = sel==='outros' ? parseInt(frVal.value||'0',10) : (sel?parseInt(sel,10):0);
+    const frKey = sel==='outros' ? 'frOutros' : (sel ? ('fr'+sel) : null);
+
     // dados UI
     const clinica=selClinica.value;
     const medicoReq=(inpMedico.value||'').trim();
@@ -310,11 +353,24 @@
 
     // textos simples
     for(const [key,cfg] of Object.entries(FIELDS_TL)){
-      if(['natureza','resumo','diag'].includes(key)) continue;
+      if(['natureza','resumo','diag','fr1','fr2','fr3','fr4','frOutros','frNumero'].includes(key)) continue;
       const value=VALUES[key]; if(!value) continue;
       const sizePt=(cfg.size||12)*SCALE;
       const {x,y}=TL(cfg.left,cfg.top,cfg.size||12);
       page.drawText(String(value),{x,y,size:sizePt,font:cfg.bold?helvB:helv,color:rgb(0,0,0)});
+    }
+
+    // frascos: marca X e escreve o número
+    if(frCount>0){
+      // número no espaço sublinhado
+      const nCfg=FIELDS_TL.frNumero, nSize=(nCfg.size||12)*SCALE, nPos=TL(nCfg.left,nCfg.top,nCfg.size||12);
+      page.drawText(String(frCount),{x:nPos.x,y:nPos.y,size:nSize,font:helv,color:rgb(0,0,0)});
+      // X no parêntese selecionado
+      const markKey = frKey || 'frOutros';
+      const mCfg=FIELDS_TL[markKey]; if(mCfg){
+        const mSize=(mCfg.size||12)*SCALE, mPos=TL(mCfg.left,mCfg.top,mCfg.size||12);
+        page.drawText('X',{x:mPos.x,y:mPos.y,size:mSize,font:helvB,color:rgb(0,0,0)});
+      }
     }
 
     // wrap para campos longos
@@ -357,12 +413,17 @@
   const form=$('#formCard');
   form.addEventListener('input',e=>{
     const id=e.target.id;
-    if(['medicoInp','naturezaInp','resumoInp','diagInp'].includes(id)) scheduleGenerate('typing');
+    if(['medicoInp','naturezaInp','resumoInp','diagInp','frVal'].includes(id)) scheduleGenerate('typing');
   });
   form.addEventListener('change',e=>{
     const id=e.target.id;
-    if(['clinicaSel','dataOutraVal','dataHoje','dataOutra'].includes(id)){
+    if(['clinicaSel','dataOutraVal','dataHoje','dataOutra','frVal'].includes(id)){
       if(id==='dataHoje'||id==='dataOutra') syncDataInputs();
+      if(id==='frVal'){} // já cai no instant
+      scheduleGenerate('instant');
+    }
+    if(e.target.name==='frOpt'){
+      syncFrascosInput();
       scheduleGenerate('instant');
     }
   });
